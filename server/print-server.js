@@ -254,7 +254,7 @@ async function openAIEdit(dataUrl, prompt) {
   const mime = m[1] === "png" ? "image/png" : "image/jpeg";
   const form = new FormData();
   form.append("model", OPENAI_IMAGE_MODEL);
-  form.append("image", new Blob([bytes], { type: mime }), "blueprint-source." + ext);
+  form.append("image[]", new Blob([bytes], { type: mime }), "blueprint-source." + ext);
   form.append("prompt", prompt);
   form.append("quality", process.env.OPENAI_IMAGE_QUALITY || "medium");
   form.append("output_format", "png");

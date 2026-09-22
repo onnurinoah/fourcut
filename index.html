@@ -302,6 +302,11 @@
   .pick button[aria-pressed="true"] .ord{opacity:1}
   .counter{font-size:16px;color:var(--muted);letter-spacing:.04em}
   .counter b{color:var(--gold);font-weight:400;font-size:30px;font-family:var(--sans)}
+  .pickfilter{margin-top:16px;flex:0 0 auto}
+  .pickfilter > span{display:block;font-size:11px;letter-spacing:.18em;color:var(--gold);margin-bottom:9px}
+  .pickfilterrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .filterchip{min-height:46px;border:1px solid var(--line);border-radius:10px;background:#111216;color:var(--muted);cursor:pointer;font-size:13px}
+  .filterchip[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#15140F;font-weight:500}
 
   /* ── 4. 인쇄 ── */
   #s-print{grid-template-columns:1fr 660px;gap:36px}
@@ -454,7 +459,10 @@
       <span class="s">누른 순서대로 위에서 아래로 들어갑니다</span>
       <span class="rule"></span>
     </div>
-    <div class="counter" style="flex:1 1 auto"><b id="pickN">0</b> / 4 장 선택</div>
+    <div class="counter"><b id="pickN">0</b> / 4 장 선택</div>
+    <div class="pickfilter">
+      <span>사진 톤</span><div class="pickfilterrow" id="pickFilters"></div>
+    </div>
     <div class="btns">
       <button class="btn ghost" id="reshootBtn" style="flex:0 0 150px">다시 찍기</button>
       <button class="btn solid grow" id="toPrintBtn" disabled>미리보기</button>
@@ -475,7 +483,7 @@
   </div>
   <div class="col">
     <div class="mark">
-      <span class="t" style="font-size:26px">필터와 배경 선택</span>
+      <span class="t" style="font-size:26px">사진 필터와 배경 선택</span>
       <span class="s" id="printSub"></span>
     </div>
     <div class="lane">
@@ -533,7 +541,7 @@
     </div>
     <div class="bp-actions">
       <button class="btn ghost" id="bpAgainBtn">다시 찍기</button>
-      <button class="btn solid grow" id="bpPrintBtn" disabled>두 장 모두 인쇄</button>
+      <button class="btn solid grow" id="bpPrintBtn" disabled>청사진 바로 인쇄</button>
     </div>
     <p class="bpnote">인쇄 서버가 연결되어 있으면 브라우저 인쇄창 없이 바로 프린터로 보냅니다.</p>
   </div>
@@ -1181,16 +1189,37 @@
 
   /* ══════ 고르기 ══════ */
   function buildPick(){
+    buildPickFilters();
     var grid = $("pickGrid");
     grid.innerHTML = "";
     S.shots.forEach(function(sh, i){
       var b = document.createElement("button");
       b.type = "button"; b.setAttribute("aria-pressed", "false");
       b.innerHTML = '<img alt="' + (i+1) + '번째 컷" src="' + sh.url + '"><span class="ord"></span>';
+      var pi = b.querySelector("img");
+      if(FILTERS[S.filter] && FILTERS[S.filter].css) pi.style.filter = FILTERS[S.filter].css;
       b.onclick = function(){ togglePick(i); };
       grid.appendChild(b);
     });
     refreshPick();
+  }
+
+  function buildPickFilters(){
+    var box = $("pickFilters");
+    if(!box) return;
+    box.innerHTML = "";
+    Object.keys(FILTERS).filter(function(k){ return k !== "blue"; }).forEach(function(k){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "filterchip";
+      b.textContent = FILTERS[k].label;
+      b.setAttribute("aria-pressed", String(S.filter === k));
+      b.onclick = function(){
+        S.filter = k; savePrefs();
+        buildPick();
+        refreshPick();
+      };
+      box.appendChild(b);
+    });
   }
 
   function togglePick(i){
@@ -1239,25 +1268,45 @@
     });
   }
 
-  function agentBlueprint(){
-    if(!S.agent.ok) return Promise.reject(new Error("인쇄 서버에 연결되지 않았습니다."));
-    return agentFetch("/blueprint", {
+  function blueprintApiFetch(){
+    var body = JSON.stringify({ image:S.blueprint.original.toDataURL("image/jpeg",.92) });
+    if(S.agent.ok){
+      return agentFetch("/blueprint", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:body
+      }, 180000);
+    }
+    if(location.protocol === "file:") return Promise.reject(new Error("웹에서 실행하거나 인쇄 서버를 연결해 주세요."));
+    var ctl = new AbortController();
+    var timer = setTimeout(function(){ ctl.abort(); }, 180000);
+    return fetch("/api/blueprint", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({ image:S.blueprint.original.toDataURL("image/jpeg",.92) })
-    }, 180000);
+      body:body,
+      signal:ctl.signal
+    }).then(function(r){
+      clearTimeout(timer);
+      return r.json().catch(function(){ return {}; }).then(function(j){
+        if(!r.ok || !j.ok) throw new Error(j.error || "웹 AI 서버 오류");
+        return j;
+      });
+    }, function(e){
+      clearTimeout(timer);
+      throw e;
+    });
   }
 
   async function runBlueprintAI(){
     if(!S.blueprint.original) throw new Error("사진이 없습니다.");
     if(!S.agent.ok){
       $("bpState").className="bpstate";
-      $("bpState").textContent="AI 서버가 연결되지 않았습니다. 관리자 설정에서 인쇄 서버를 연결해 주세요.";
+      $("bpState").textContent="AI 서버를 준비하는 중입니다. 잠시만 기다려 주세요.";
       throw new Error("AI/인쇄 서버에 연결되지 않았습니다.");
     }
     var t0 = Date.now();
     try{
-      var j = await agentBlueprint();
+      var j = await blueprintApiFetch();
       if(!j.ok || !j.animation || !j.jesus) throw new Error(j.error || "AI 결과를 받지 못했습니다.");
       S.blueprint.animation = await dataUrlToImage(j.animation);
       S.blueprint.jesus = await dataUrlToImage(j.jesus);
