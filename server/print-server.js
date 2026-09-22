@@ -37,8 +37,10 @@ const SHARE_TTL = 30 * 60 * 1000;   // 사진 한 장이 남아 있는 시간
 const WEBROOT = path.resolve(arg("dir", path.join(__dirname, "..")));
 const FIXED_PRINTER = arg("printer", "");
 const NO_FIT = argv.includes("--no-fit");
-const MAX_BODY = 48 * 1024 * 1024;
+const MAX_BODY = 64 * 1024 * 1024;
 const WIN = process.platform === "win32";
+const OPENAI_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -106,7 +108,7 @@ function startTunnel() {
    주소를 /s 하나로 고정해 두면 QR 도 하나로 고정됩니다. 부스에 붙여 둔 QR 을
    손님이 아무 때나 찍으면 그 순간의 사진이 나옵니다. 다음 사람이 찍으면
    앞 사진은 그 자리에서 지워집니다. */
-let CURRENT = null;              // { buf, type, ext, at, ver }
+let CURRENT = null;              // { items:[{buf,type,ext,label}], at, ver }
 let VER = 0;
 function currentPhoto() {
   if (CURRENT && Date.now() - CURRENT.at > SHARE_TTL) CURRENT = null;   // 오래되면 스스로 사라집니다
@@ -242,6 +244,48 @@ async function toBuffer(out, form) {
   return Buffer.from(m ? m[1] : out, "base64");
 }
 
+async function openAIEdit(dataUrl, prompt) {
+  if (!OPENAI_KEY) throw new Error("OPENAI_API_KEY가 설정되지 않았습니다");
+  const m = /^data:image\/(png|jpeg);base64,(.+)$/s.exec(String(dataUrl || ""));
+  if (!m) throw new Error("이미지를 찾지 못했습니다");
+
+  const bytes = Buffer.from(m[2], "base64");
+  const ext = m[1] === "png" ? "png" : "jpg";
+  const mime = m[1] === "png" ? "image/png" : "image/jpeg";
+  const form = new FormData();
+  form.append("model", OPENAI_IMAGE_MODEL);
+  form.append("image", new Blob([bytes], { type: mime }), "blueprint-source." + ext);
+  form.append("prompt", prompt);
+  form.append("quality", process.env.OPENAI_IMAGE_QUALITY || "medium");
+  form.append("output_format", "png");
+
+  const r = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + OPENAI_KEY },
+    body: form
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("OpenAI 이미지 생성 오류 " + r.status + ": " + JSON.stringify(j).slice(0, 500));
+  const out = j && j.data && j.data[0] && j.data[0].b64_json;
+  if (!out) throw new Error("OpenAI가 이미지를 반환하지 않았습니다");
+  return "data:image/png;base64," + out;
+}
+
+const BLUEPRINT_PROMPTS = {
+  animation: [
+    "사진 속 인물의 얼굴, 표정, 헤어스타일, 체형, 포즈, 옷차림과 인물 수를 최대한 정확하게 유지합니다.",
+    "사진을 따뜻하고 섬세한 일본 애니메이션 영화풍의 손그림 장면으로 재해석합니다. 부드러운 수채화 질감, 자연광, 따뜻한 색감, 배경의 깊이감을 사용합니다.",
+    "실존 인물을 다른 사람으로 바꾸지 말고 사진 속 사람이 누구인지 알아볼 수 있게 유지합니다. 과도한 미화나 성형처럼 보이는 얼굴 변경을 피합니다.",
+    "인물의 손과 눈, 안경, 소품은 자연스럽게 표현하고 만화적인 왜곡을 최소화합니다. 이미지 안에 글자, 로고, 워터마크를 넣지 않습니다."
+  ].join(" "),
+  jesus: [
+    "사진 속 인물의 얼굴, 표정, 헤어스타일, 체형, 포즈, 옷차림과 인물 수를 최대한 정확하게 유지합니다.",
+    "사진 속 실제 사람이 따뜻하고 평온한 표정의 예수님과 같은 공간에 자연스럽게 함께 있는 장면으로 재구성합니다.",
+    "예수님은 1세기 팔레스타인 유대인 남성의 모습으로, 소박한 긴 옷과 자연스러운 모습으로 표현합니다. 과장된 후광이나 판타지 효과는 사용하지 않습니다.",
+    "두 사람이 서로 안전하고 다정한 분위기에서 함께 서 있거나 걷는 장면처럼 자연스럽게 보이게 합니다. 사진 속 본래 인물의 정체성과 얼굴을 유지하고, 이미지 안에 글자, 로고, 워터마크를 넣지 않습니다."
+  ].join(" ")
+};
+
 async function toonify(dataUrl) {
   const cfg = toonConfig();
   if (!cfg || !cfg.endpoint) throw new Error("toon.config.json 이 없습니다");
@@ -328,6 +372,10 @@ function serveStatic(req, res, urlPath) {
   });
 }
 
+function escHtml(value) {
+  return String(value || "").replace(/[&<>"]/g, function(ch) { return {"&":"&amp;","<":"&lt;",">":"&gt;","":"&quot;"}[ch]; });
+}
+
 const server = http.createServer(async (req, res) => {
   const url = req.url || "/";
 
@@ -338,9 +386,35 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, {
       ok: true, platform: process.platform, printers, defaultPrinter: def,
       toon: !!toonConfig(),
+      blueprintAI: !!OPENAI_KEY,
+      imageModel: OPENAI_IMAGE_MODEL,
       share: shareOn(), shareBase: shareOn() ? shareBase() + "/d" : "",
       lanIp: LAN_IP, public: PUBLIC, tunnel: TUNNEL_STATE
     });
+  }
+
+  /* ── 청사진: 한 장으로 두 가지 AI 장면을 만듭니다 ── */
+  if (url.startsWith("/blueprint") && req.method === "POST") {
+    if (!OPENAI_KEY) {
+      return json(res, 503, { ok:false, error:"OPENAI_API_KEY가 없어 AI 청사진 기능이 꺼져 있습니다." });
+    }
+    try {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString("utf8"));
+      const source = String(body.image || "");
+      if (!source) return json(res, 400, { ok:false, error:"원본 사진이 없습니다." });
+      const t0 = Date.now();
+      const [animation, jesus] = await Promise.all([
+        openAIEdit(source, BLUEPRINT_PROMPTS.animation),
+        openAIEdit(source, BLUEPRINT_PROMPTS.jesus)
+      ]);
+      console.log(new Date().toLocaleTimeString("ko-KR"),
+        `청사진 AI 2장 완료 (${Math.round((Date.now() - t0) / 1000)}초, ${OPENAI_IMAGE_MODEL})`);
+      return json(res, 200, { ok:true, animation, jesus });
+    } catch (e) {
+      console.error("청사진 AI 실패:", e.message);
+      return json(res, 502, { ok:false, error:String(e.message || e) });
+    }
   }
 
   /* ── 사진 한 장을 그림으로 바꿔 돌려줍니다 ── */
@@ -368,7 +442,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true, ver: VER });
   }
 
-  /* ── 지금 사진을 맡깁니다. 앞 사진은 이 자리에서 버려집니다 ── */
+  /* ── 지금 사진(또는 청사진 3장)을 맡깁니다. 앞 사람 사진은 이 자리에서 버립니다 ── */
   if (url.startsWith("/share") && req.method === "POST") {
     if (!shareOn()) {
       return json(res, 503, { ok: false, error: LAN
@@ -378,21 +452,28 @@ const server = http.createServer(async (req, res) => {
     try {
       const raw = await readBody(req);
       const body = JSON.parse(raw.toString("utf8"));
-      const m = /^data:image\/(png|jpeg);base64,(.+)$/s.exec(String(body.image || ""));
-      if (!m) return json(res, 400, { ok: false, error: "이미지를 찾지 못했습니다" });
+      const incoming = Array.isArray(body.images)
+        ? body.images
+        : (body.image ? [{ image: body.image, label: "인화 사진" }] : []);
+      if (!incoming.length) return json(res, 400, { ok:false, error:"이미지를 찾지 못했습니다" });
+
+      const items = incoming.slice(0, 6).map((item, idx) => {
+        const m = /^data:image\/(png|jpeg);base64,(.+)$/s.exec(String(item && item.image || ""));
+        if (!m) throw new Error("이미지 " + (idx + 1) + " 형식이 올바르지 않습니다");
+        return {
+          buf: Buffer.from(m[2], "base64"),
+          type: m[1] === "png" ? "image/png" : "image/jpeg",
+          ext: m[1] === "png" ? "png" : "jpg",
+          label: String(item.label || (idx + 1) + "번째 사진").slice(0, 60)
+        };
+      });
 
       VER++;
-      CURRENT = {
-        buf: Buffer.from(m[2], "base64"),
-        type: m[1] === "png" ? "image/png" : "image/jpeg",
-        ext: m[1] === "png" ? "png" : "jpg",
-        at: Date.now(),
-        ver: VER
-      };
-      console.log(new Date().toLocaleTimeString("ko-KR"), `폰으로 받을 사진 갱신 (${VER}) — ${shareBase()}/d`);
-      return json(res, 200, { ok: true, url: shareBase() + "/d", ver: VER, ttl: SHARE_TTL });
+      CURRENT = { items, at:Date.now(), ver:VER };
+      console.log(new Date().toLocaleTimeString("ko-KR"), `폰으로 받을 사진 ${items.length}장 갱신 (${VER}) — ${shareBase()}/d`);
+      return json(res, 200, { ok:true, url:shareBase()+"/d", ver:VER, ttl:SHARE_TTL, count:items.length });
     } catch (e) {
-      return json(res, 500, { ok: false, error: String(e.message || e) });
+      return json(res, 500, { ok:false, error:String(e.message || e) });
     }
   }
 
@@ -402,27 +483,31 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ver: it ? it.ver : 0, has: !!it });
   }
 
-  if (/^\/s\/photo\.(?:png|jpg)(?:\?|$)/.test(url)) {
+  if (/^\/s\/photo(?:-\d+)?\.(?:png|jpg)(?:\?|$)/.test(url)) {
     const it = currentPhoto();
-    if (!it) { cors(res); res.writeHead(404); return res.end(); }
+    if (!it || !it.items || !it.items.length) { cors(res); res.writeHead(404); return res.end(); }
+    const match = url.match(/^\/s\/photo(?:-(\d+))?\./);
+    const idx = match && match[1] ? Number(match[1]) : 0;
+    const photo = it.items[idx] || it.items[0];
     // ?dl 이 붙으면 폰이 열어 보지 않고 곧바로 내려받습니다.
     const dl = /[?&]dl\b/.test(url);
     cors(res);
     res.writeHead(200, {
-      "Content-Type": it.type,
-      "Content-Length": it.buf.length,
+      "Content-Type": photo.type,
+      "Content-Length": photo.buf.length,
       "Cache-Control": "no-store",
       "Content-Disposition": (dl ? "attachment" : "inline")
-        + '; filename="fourcut-' + it.ver + '.' + it.ext + '"'
+        + '; filename="blueprint-' + it.ver + '-' + (idx + 1) + '.' + photo.ext + '"'
     });
-    return res.end(it.buf);
+    return res.end(photo.buf);
   }
 
   /* QR 이 가리키는 주소. 사진이 있으면 페이지를 거치지 않고 바로 내려받습니다. */
   if (/^\/d(?:\/)?(?:\?|$)/.test(url)) {
     const it = currentPhoto();
+    const multi = it && it.items && it.items.length > 1;
     res.writeHead(302, {
-      "Location": it ? ("/s/photo." + it.ext + "?dl&v=" + it.ver) : "/s",
+      "Location": it ? (multi ? "/s" : ("/s/photo." + it.items[0].ext + "?dl&v=" + it.ver)) : "/s",
       "Cache-Control": "no-store"
     });
     return res.end();
@@ -430,43 +515,34 @@ const server = http.createServer(async (req, res) => {
 
   if (/^\/s(?:\/)?(?:\?|$)/.test(url)) {
     const it = currentPhoto();
+    const items = it && it.items ? it.items : [];
+    const cards = items.map((photo, idx) => {
+      const src = "/s/photo-" + idx + "." + photo.ext + "?v=" + it.ver;
+      const dl = "/s/photo-" + idx + "." + photo.ext + "?dl&v=" + it.ver;
+      return '<article class="card"><div class="label">' + escHtml(photo.label) + '</div>'
+        + '<img src="' + src + '" alt="' + escHtml(photo.label) + '">'
+        + '<a class="dl" href="' + dl + '">사진 저장</a></article>';
+    }).join("");
+    const empty = items.length ? "" : '<div class="wait" id="wait">아직 사진이 없습니다.<br><small>부스에서 사진을 만들면 이 화면에 바로 뜹니다.</small></div>';
+    const saveAll = items.length > 1 ? '<button class="dl" id="allBtn">사진 3장 저장하기</button>' : '';
     const page = '<!doctype html><html lang="ko"><meta charset="utf-8">'
       + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-      + '<title>인생네컷</title><style>'
-      + 'body{margin:0;background:#0B0B0D;color:#F2F0EC;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;'
-      + 'font-weight:300;display:flex;flex-direction:column;align-items:center;gap:18px;padding:26px 18px 40px}'
-      + 'h1{font-size:15px;letter-spacing:.3em;color:#E8C27A;font-weight:400;margin:4px 0 0}'
-      + 'img{width:100%;max-width:440px;height:auto;border-radius:12px;display:block;'
-      + 'box-shadow:0 18px 50px rgba(0,0,0,.6)}'
-      + 'a.dl{display:block;width:100%;max-width:440px;text-align:center;background:#E8C27A;color:#15140F;'
-      + 'text-decoration:none;padding:17px;border-radius:12px;font-size:16px;letter-spacing:.06em}'
-      + 'p{font-size:13px;line-height:1.8;color:rgba(242,240,236,.55);text-align:center;margin:0;max-width:440px}'
-      + '.wait{padding:60px 0;font-size:15px;color:rgba(242,240,236,.5);text-align:center;line-height:2}'
-      + '[hidden]{display:none}'
-      + '</style><h1>인생네컷</h1>'
-      + '<div class="wait" id="wait">아직 사진이 없습니다.<br><small>부스에서 찍고 나면 이 화면에 바로 뜹니다.</small></div>'
-      + '<img id="ph" hidden alt="인생네컷 사진">'
-      + '<a class="dl" id="dl" hidden href="/s/photo.png" download="fourcut.png">사진 저장</a>'
-      + '<p id="tip" hidden>저장이 안 되면 사진을 길게 눌러 <b>이미지 저장</b> 을 고르세요.<br>'
-      + '다음 사람이 찍으면 이 사진은 사라집니다.</p>'
-      + '<script>(function(){'
-      + 'var ver=-1;'
-      + 'var first=true;'
-      + 'function draw(v,has){'
-      + 'if(v===ver) return;'
-      + 'if(has && !first){ location.href="/s/photo.png?dl&v="+v; return; }'   // 기다리다 사진이 오면 바로 받기
-      + 'ver=v; first=false;'
-      + 'var ph=document.getElementById("ph"),dl=document.getElementById("dl");'
-      + 'if(!has){ph.hidden=dl.hidden=document.getElementById("tip").hidden=true;'
-      + 'document.getElementById("wait").hidden=false;return;}'
-      + 'ph.src="/s/photo.png?v="+v; ph.hidden=false;'
-      + 'dl.href="/s/photo.png?v="+v; dl.download="fourcut-"+v+".png"; dl.hidden=false;'
-      + 'document.getElementById("tip").hidden=false;'
-      + 'document.getElementById("wait").hidden=true;}'
-      + 'draw(' + (it ? it.ver : 0) + ',' + (it ? 'true' : 'false') + ');first=false;'
-      + 'setInterval(function(){fetch("/s/ver",{cache:"no-store"}).then(function(r){return r.json();})'
-      + '.then(function(j){draw(j.ver,j.has);}).catch(function(){});},2000);'
-      + '})();</scr' + 'ipt></html>';
+      + '<title>CH+ BLUEPRINT</title><style>'
+      + 'body{margin:0;background:#0B0B0D;color:#F2F0EC;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;display:flex;flex-direction:column;align-items:center;padding:24px 16px 40px}'
+      + 'h1{font-size:13px;letter-spacing:.28em;color:#E8C27A;font-weight:500;margin:3px 0 22px}.sub{color:rgba(242,240,236,.58);font-size:13px;margin:-10px 0 22px;text-align:center;line-height:1.7}'
+      + '.grid{width:100%;max-width:700px;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}'
+      + '.card{background:#141418;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px;box-sizing:border-box}.card .label{font-size:14px;color:#F2F0EC;padding:4px 4px 11px}.card img{width:100%;display:block;border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.5)}'
+      + 'a.dl,button.dl{display:block;width:100%;box-sizing:border-box;margin-top:10px;text-align:center;background:#E8C27A;color:#15140F;text-decoration:none;border:0;padding:14px;border-radius:11px;font-size:15px;cursor:pointer}'
+      + '.all{width:100%;max-width:700px}.all button{font:inherit}.wait{padding:72px 8px;text-align:center;color:rgba(242,240,236,.52);line-height:2}.tip{max-width:600px;color:rgba(242,240,236,.42);font-size:12px;text-align:center;line-height:1.7;margin-top:20px}'
+      + '</style><h1>CH+ BLUEPRINT</h1><div class="sub">원본 사진과 완성된 청사진을 한 번에 받아가세요.</div>'
+      + '<div class="grid">' + (empty || cards) + '</div>'
+      + (saveAll ? '<div class="all">' + saveAll + '</div>' : '')
+      + '<div class="tip">사진은 일정 시간이 지나면 자동으로 삭제됩니다.</div>'
+      + '<script>(function(){var ver=' + (it ? it.ver : 0) + ';'
+      + 'var all=' + JSON.stringify(items.map((photo,idx)=>({href:"/s/photo-"+idx+"."+photo.ext+"?dl&v="+(it?it.ver:0),name:"blueprint-"+(idx+1)+"."+photo.ext}))) + ';'
+      + 'var b=document.getElementById("allBtn");if(b)b.onclick=function(){all.forEach(function(x){var a=document.createElement("a");a.href=x.href;a.download=x.name;document.body.appendChild(a);a.click();a.remove();});};'
+      + 'setInterval(function(){fetch("/s/ver",{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j.ver && j.ver!==ver) location.reload();}).catch(function(){});},2500);'
+      + '})();</script></html>';
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
     return res.end(page);
   }

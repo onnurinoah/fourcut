@@ -239,6 +239,36 @@
   .qrsub{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
   .qrsub span{font-family:var(--sans);font-size:12.5px;color:var(--gold)}
 
+  /* ── 청사진 AI ── */
+  #s-blueprint{grid-template-columns:1fr 560px;gap:34px}
+  .bpresults{min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:center}
+  .bpcard{min-height:0;background:#111217;border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.42)}
+  .bpcard .imgbox{position:relative;aspect-ratio:4/3;background:#0B0B0D;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .bpcard img{width:100%;height:100%;object-fit:cover;display:block}
+  .bpcard .loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);background:rgba(11,11,13,.76);backdrop-filter:blur(3px)}
+  .bpload{width:36px;height:36px;border-radius:50%;border:2px solid rgba(232,194,122,.2);border-top-color:var(--gold);animation:spin 1s linear infinite}
+  .bpcard .meta{padding:17px 18px 18px}
+  .bpcard .meta strong{display:block;font-size:18px;font-weight:400;color:var(--ink);margin-bottom:4px}
+  .bpcard .meta span{display:block;font-size:12.5px;color:var(--muted);line-height:1.55}
+  .bpright{min-height:0;display:flex;flex-direction:column;gap:18px}
+  .bpintro{padding:2px 4px 0}
+  .bpintro .eyebrow{font-family:var(--sans);font-size:11px;letter-spacing:.25em;color:var(--gold);margin-bottom:10px}
+  .bpintro h2{margin:0;font-size:36px;font-weight:300;letter-spacing:-.03em}
+  .bpintro p{margin:9px 0 0;color:var(--muted);font-size:14px;line-height:1.75}
+  .bpstate{padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:rgba(20,20,24,.72);color:var(--muted);font-size:13.5px;line-height:1.65}
+  .bpstate.ok{border-color:rgba(123,216,143,.25);color:var(--live)}
+  .bpqrcard{margin-top:auto}
+  .bp-actions{display:flex;gap:10px}
+  .bp-actions .btn{min-height:64px}
+  .bpnote{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+
+  /* 청사진 촬영 버튼을 실제 주 CTA처럼 보이게 */
+  .homechoices{display:flex;gap:14px;align-items:stretch}
+  .homechoices .big{min-width:340px}
+  .homebadge{display:inline-flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.05em;color:rgba(255,255,255,.82);margin-bottom:7px}
+  .homebadge i{width:7px;height:7px;border-radius:50%;background:var(--gold);display:block;box-shadow:0 0 12px rgba(232,194,122,.55)}
+  .homehelp{margin:0;color:rgba(255,255,255,.78);font-size:14px}
+
   /* ── 2. 촬영 ── */
   #s-shoot{grid-template-columns:1fr 330px;gap:38px}
   #tray{
@@ -383,8 +413,12 @@
     </button>
 
     <div class="homeact">
-      <button class="btn solid big" id="startBtn">네컷 촬영하기</button>
-      <button class="btn big line" id="startBpBtn">청사진 촬영하기</button>
+      <div class="homebadge"><i></i> CH+ BLUEPRINT PHOTO</div>
+      <div class="homechoices">
+        <button class="btn solid big" id="startBtn">네컷 촬영하기</button>
+        <button class="btn big line" id="startBpBtn">청사진 사진 찍기</button>
+      </div>
+      <p class="homehelp" id="homeHelp">청사진은 한 장만 찍으면 AI가 두 가지 장면으로 만들어 드립니다.</p>
       <p class="homemsg" id="homeMsg"></p>
     </div>
   </div>
@@ -461,8 +495,47 @@
     <div class="btns">
       <button class="btn ghost" id="backBtn" style="flex:0 0 160px">다시 고르기</button>
       <button class="btn ghost" id="saveBtn" style="flex:0 0 120px">저장</button>
-      <button class="btn solid grow" id="printBtn">인쇄하기</button>
+      <button class="btn solid grow" id="printBtn">바로 인쇄하기</button>
     </div>
+  </div>
+</section>
+
+<!-- ══════════ 청사진 AI 결과 ══════════ -->
+<section class="screen" id="s-blueprint">
+  <div class="bpresults">
+    <article class="bpcard">
+      <div class="imgbox">
+        <img id="bpAnim" alt="지브리 감성 애니메이션 버전" hidden>
+        <div class="loading" id="bpAnimLoading"><div class="bpload"></div><span>애니메이션 장면을 만들고 있어요</span></div>
+      </div>
+      <div class="meta"><strong>지브리 감성 애니메이션</strong><span>찍은 사진의 표정과 분위기를 살린 따뜻한 손그림 영화풍</span></div>
+    </article>
+    <article class="bpcard">
+      <div class="imgbox">
+        <img id="bpJesus" alt="예수님과 함께한 모습" hidden>
+        <div class="loading" id="bpJesusLoading"><div class="bpload"></div><span>예수님과 함께한 장면을 만들고 있어요</span></div>
+      </div>
+      <div class="meta"><strong>예수님과 함께</strong><span>내 모습은 그대로, 예수님이 곁에 계신 장면</span></div>
+    </article>
+  </div>
+  <div class="bpright">
+    <div class="bpintro">
+      <div class="eyebrow">BLUEPRINT</div>
+      <h2>당신의 청사진이<br>완성되었습니다.</h2>
+      <p>AI가 찍은 사진을 바탕으로 두 장면을 만들었습니다.<br>아래 QR로 원본과 완성본을 모두 받아갈 수 있습니다.</p>
+    </div>
+    <div class="bpstate" id="bpState">AI 이미지를 만드는 중입니다. 잠시만 기다려 주세요.</div>
+    <div class="qrcard bpqrcard" id="bpQrCard">
+      <div class="qrhead">사진 한 번에 받기</div>
+      <div class="qrcode" id="bpQrCode"><span class="wait">준비 중…</span></div>
+      <div class="qrurl" id="bpQrUrl"></div>
+      <p class="qrnote" id="bpQrNote">완성되면 QR이 바로 활성화됩니다.</p>
+    </div>
+    <div class="bp-actions">
+      <button class="btn ghost" id="bpAgainBtn">다시 찍기</button>
+      <button class="btn solid grow" id="bpPrintBtn" disabled>두 장 모두 인쇄</button>
+    </div>
+    <p class="bpnote">인쇄 서버가 연결되어 있으면 브라우저 인쇄창 없이 바로 프린터로 보냅니다.</p>
   </div>
 </section>
 
@@ -750,6 +823,7 @@
     caption:"인생네컷", withDate:true, mirror:true, countdown:3,
     copies:1, deviceId:null, stream:null,
     shots:[], picked:[], sheet:null,
+    blueprintMode:false, blueprint:{ original:null, animation:null, jesus:null, ready:false },
     agent:{ url:"http://localhost:8787", ok:false, printer:"" },
     busy:false, abort:false
   };
@@ -1029,10 +1103,11 @@
     S.abort = false; S.shots = []; S.picked = [];
     drawTray();
     var cnt = $("count"), fl = $("flash");
+    var totalShots = S.blueprintMode ? 1 : SHOTS;
 
     function shoot(n){
       if(S.abort) return Promise.resolve();
-      $("shotNo").textContent = (n+1) + " / " + SHOTS;
+      $("shotNo").textContent = (n+1) + " / " + totalShots;
       var ticks = Promise.resolve();
       for(var t=S.countdown; t>=1; t--){
         (function(t){
@@ -1055,13 +1130,19 @@
         drawTray();
         return sleep(900);
       }).then(function(){
-        if(S.abort || n+1 >= SHOTS) return;
+        if(S.abort || n+1 >= totalShots) return;
         return shoot(n+1);
       });
     }
 
     return shoot(0).then(function(){
       if(S.abort){ show("s-setup"); return; }
+      if(S.blueprintMode){
+        S.blueprint.original = S.shots[0] ? S.shots[0].canvas : null;
+        show("s-blueprint");
+        resetBlueprintUI();
+        return runBlueprintAI();
+      }
       buildPick();
       show("s-pick");
     }).catch(function(e){
@@ -1073,6 +1154,8 @@
   function startShoot(blueprintMode){
     beep(520, .05, .04); // 소리 권한을 이 손짓에서 얻어 둡니다
     qrClear();           // 앞 사람 사진은 여기서 버립니다
+    S.blueprintMode = !!blueprintMode;
+    S.blueprint = { original:null, animation:null, jesus:null, ready:false };
     if(blueprintMode){
       S.filter = "blue"; S.frame = "navy";
     }else if(S.filter === "blue"){
@@ -1080,7 +1163,9 @@
     }
     savePrefs(); syncSetup();
     show("s-shoot");
-    $("shootSub").textContent = S.countdown + "초마다 한 장씩, 여덟 장을 이어서 찍습니다";
+    $("shootSub").textContent = blueprintMode
+      ? S.countdown + "초 뒤 한 장만 찍습니다"
+      : S.countdown + "초마다 한 장씩, 여덟 장을 이어서 찍습니다";
     var p = S.stream ? Promise.resolve() : openCamera(S.deviceId);
     p.then(function(){ return sleep(700); })
      .then(sequence)
@@ -1126,6 +1211,137 @@
     $("pickN").textContent = S.picked.length;
     $("toPrintBtn").disabled = S.picked.length !== KEEP;
   }
+
+  /* ══════ 청사진 AI ══════ */
+  function resetBlueprintUI(){
+    ["bpAnim","bpJesus"].forEach(function(id){ $(id).hidden=true; $(id).removeAttribute("src"); });
+    $("bpAnimLoading").hidden=false; $("bpJesusLoading").hidden=false;
+    $("bpState").className="bpstate";
+    $("bpState").textContent="AI 이미지를 만드는 중입니다. 잠시만 기다려 주세요.";
+    $("bpPrintBtn").disabled=true;
+    $("bpQrCode").innerHTML='<span class="wait">준비 중…</span>';
+    $("bpQrUrl").textContent="";
+    $("bpQrNote").className="qrnote";
+    $("bpQrNote").textContent="완성되면 QR이 바로 활성화됩니다.";
+  }
+
+  function dataUrlToImage(dataUrl){
+    return new Promise(function(resolve,reject){
+      var img = new Image();
+      img.onload = function(){
+        var cv = document.createElement("canvas");
+        cv.width = img.naturalWidth || img.width; cv.height = img.naturalHeight || img.height;
+        cv.getContext("2d").drawImage(img,0,0);
+        resolve(cv);
+      };
+      img.onerror = function(){ reject(new Error("AI 결과 이미지를 읽지 못했습니다.")); };
+      img.src = dataUrl;
+    });
+  }
+
+  function agentBlueprint(){
+    if(!S.agent.ok) return Promise.reject(new Error("인쇄 서버에 연결되지 않았습니다."));
+    return agentFetch("/blueprint", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ image:S.blueprint.original.toDataURL("image/jpeg",.92) })
+    }, 180000);
+  }
+
+  async function runBlueprintAI(){
+    if(!S.blueprint.original) throw new Error("사진이 없습니다.");
+    if(!S.agent.ok){
+      $("bpState").className="bpstate";
+      $("bpState").textContent="AI 서버가 연결되지 않았습니다. 관리자 설정에서 인쇄 서버를 연결해 주세요.";
+      throw new Error("AI/인쇄 서버에 연결되지 않았습니다.");
+    }
+    var t0 = Date.now();
+    try{
+      var j = await agentBlueprint();
+      if(!j.ok || !j.animation || !j.jesus) throw new Error(j.error || "AI 결과를 받지 못했습니다.");
+      S.blueprint.animation = await dataUrlToImage(j.animation);
+      S.blueprint.jesus = await dataUrlToImage(j.jesus);
+      $("bpAnim").src = j.animation; $("bpAnim").hidden=false; $("bpAnimLoading").hidden=true;
+      $("bpJesus").src = j.jesus; $("bpJesus").hidden=false; $("bpJesusLoading").hidden=true;
+      S.blueprint.ready = true;
+      S.sheet = composeBlueprintSheet(300);
+      if(SHARE.on){
+        qrPutImages([
+          {image:S.blueprint.original.toDataURL("image/jpeg",.92), label:"원본 사진"},
+          {image:j.animation, label:"따뜻한 애니메이션"},
+          {image:j.jesus, label:"예수님과 함께"}
+        ]);
+      }
+      $("bpState").className="bpstate ok";
+      $("bpState").textContent="완성되었습니다. QR로 세 장을 한 번에 받고, 인쇄 서버가 연결돼 있으면 바로 인쇄할 수 있습니다.";
+      $("bpPrintBtn").disabled=false;
+      // 행사장에서는 AI 결과가 완성되자마자 바로 인쇄되도록 합니다.
+      await blueprintAutoPrint();
+      console.log("청사진 AI 완료", Math.round((Date.now()-t0)/1000)+"초");
+    }catch(e){
+      ["bpAnimLoading","bpJesusLoading"].forEach(function(id){ $(id).hidden=true; });
+      $("bpState").className="bpstate";
+      $("bpState").textContent=e.message || "AI 변환에 실패했습니다.";
+      $("bpPrintBtn").disabled=false;
+      return null;
+    }
+  }
+
+  async function blueprintAutoPrint(){
+    if(!S.sheet || !S.agent.ok) return;
+    try{
+      $("bpPrintBtn").disabled=true;
+      $("bpState").textContent="완성된 청사진을 프린터로 보내는 중입니다…";
+      await agentPrint();
+      $("bpState").className="bpstate ok";
+      $("bpState").textContent="인쇄를 보냈습니다. 휴대폰에서는 QR로 원본과 완성본을 받아가세요.";
+      finish("청사진 인쇄를 보냈습니다");
+    }catch(e){
+      $("bpPrintBtn").disabled=false;
+      $("bpState").textContent="사진은 완성됐습니다. 아래 버튼을 눌러 다시 인쇄해 주세요.";
+    }
+  }
+
+  function composeBlueprintSheet(dpi){
+    var Lo = { paper:paper() };
+    var k=dpi/25.4, W=Math.round(Lo.paper.w*k), H=Math.round(Lo.paper.h*k);
+    var cv=document.createElement("canvas"); cv.width=W; cv.height=H;
+    var g=cv.getContext("2d"); g.imageSmoothingQuality="high";
+    g.fillStyle="#F5F1E8"; g.fillRect(0,0,W,H);
+    var pad=Math.round(W*.065), header=Math.round(H*.11), gap=Math.round(H*.035);
+    g.fillStyle="#1B2436"; g.fillRect(0,0,W,header);
+    g.fillStyle="#E8C27A"; g.textAlign="center"; g.textBaseline="middle";
+    g.font='500 '+Math.round(header*.22)+'px "Noto Sans KR",sans-serif';
+    g.fillText("CH+ BLUEPRINT", W/2, header*.37);
+    g.fillStyle="rgba(255,255,255,.78)";
+    g.font='300 '+Math.round(header*.12)+'px "Noto Sans KR",sans-serif';
+    g.fillText("YOUR STORY, DRAWN A LITTLE DIFFERENTLY", W/2, header*.66);
+    var boxY=header+pad*.7, boxW=W-pad*2, boxH=Math.floor((H-boxY-pad-gap)/2);
+    [
+      {cv:S.blueprint.animation, title:"따뜻한 애니메이션"},
+      {cv:S.blueprint.jesus, title:"예수님과 함께"}
+    ].forEach(function(it,idx){
+      var y=boxY+idx*(boxH+gap);
+      g.save(); roundRect(g,pad,y,boxW,boxH,Math.round(W*.02)); g.clip();
+      drawCover(g,it.cv,pad,y,boxW,boxH,Math.round(W*.02)); g.restore();
+      g.fillStyle="#1B2436"; g.textAlign="left"; g.textBaseline="alphabetic";
+      g.font='500 '+Math.round(W*.035)+'px "Noto Sans KR",sans-serif';
+      g.fillText(it.title,pad,y+boxH+Math.round(g.font.match(/\d+/)[0]*.95));
+    });
+    g.fillStyle="#6B6D73"; g.textAlign="right"; g.font='300 '+Math.round(W*.021)+'px "Jost","Noto Sans KR",sans-serif';
+    g.fillText(todayText(),W-pad,H-Math.round(H*.025));
+    return cv;
+  }
+
+  $("bpPrintBtn").onclick=function(){
+    if(!S.sheet || S.busy) return;
+    S.busy=true; $("bpPrintBtn").disabled=true; $("bpState").textContent="인쇄로 보내는 중…";
+    (S.agent.ok ? agentPrint() : browserPrint())
+      .then(function(){ finish("청사진을 인쇄했습니다"); })
+      .catch(function(){ $("bpState").textContent="인쇄에 실패했습니다. 다시 시도해 주세요."; $("bpPrintBtn").disabled=false; })
+      .finally(function(){ S.busy=false; });
+  };
+  $("bpAgainBtn").onclick=function(){ qrClear(); S.blueprintMode=false; S.blueprint={original:null,animation:null,jesus:null,ready:false}; show("s-setup"); };
 
   /* ══════ 인화지 그리기 ══════ */
   var canFilter = (function(){
@@ -1875,6 +2091,13 @@
     $("qrUrl").textContent = "";
     $("qrCode").innerHTML = '<span class="wait">확인 중…</span>';
     $("qrDone").hidden = true;
+    if($("bpQrCode")){
+      $("bpQrCode").innerHTML='<span class="wait">확인 중…</span>';
+      $("bpQrUrl").textContent="";
+      $("bpQrNote").className="qrnote";
+      $("bpQrNote").textContent="완성되면 QR이 바로 활성화됩니다.";
+      $("bpQrCard").classList.add("off");
+    }
     qrCardState("wait", "");
 
     if(!S.agent.url){
@@ -1903,6 +2126,7 @@
       SHARE.anywhere = !!j.public;
       qrPaint($("qrCode"), SHARE.url);
       qrPaint($("qrCode2"), SHARE.url);
+      if($("bpQrCode")) qrPaint($("bpQrCode"), SHARE.url);
       $("qrUrl").textContent = SHARE.url;
       $("qrUrl2").textContent = SHARE.url;
       $("qrDone").hidden = false;
@@ -1925,16 +2149,27 @@
   }
   function qrPutNow(){
     if(!SHARE.on || !S.sheet) return;
+    qrPutImages([{image:S.sheet.toDataURL("image/png"),label:"인화 사진"}]);
+  }
+  function qrPutImages(items){
+    if(!SHARE.on || !items || !items.length) return;
     agentFetch("/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: S.sheet.toDataURL("image/png") })
-    }, 20000).then(function(j){
+      body: JSON.stringify({ images:items })
+    }, 30000).then(function(j){
       if(!j.ok) throw new Error(j.error || "");
       qrCardState("ready", SHARE.anywhere
-        ? "비추면 바로 내려받습니다"
-        : "비추면 바로 내려받습니다 · 같은 와이파이");
+        ? "QR을 비추면 사진을 한 번에 받을 수 있습니다"
+        : "QR을 비추면 사진을 한 번에 받을 수 있습니다 · 같은 와이파이");
+      if($("bpQrCode")){
+        qrPaint($("bpQrCode"), SHARE.url);
+        $("bpQrUrl").textContent=SHARE.url;
+        $("bpQrNote").textContent=SHARE.anywhere ? "원본과 완성본 3장을 한 번에 받습니다." : "원본과 완성본 3장을 한 번에 받습니다 · 같은 와이파이";
+        $("bpQrCard").classList.remove("off");
+      }
     }).catch(function(){
+      if($("bpQrCard")){ $("bpQrCard").classList.add("off"); $("bpQrNote").className="qrnote err"; $("bpQrNote").textContent="QR 사진 공유 준비에 실패했습니다."; }
       qrCardState("err", "사진을 서버에 올리지 못했습니다");
     });
   }
