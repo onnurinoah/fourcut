@@ -30,6 +30,8 @@ function arg(name, dflt) {
 }
 const PORT = Number(arg("port", process.env.PORT || 8787));
 const LAN = argv.includes("--lan");
+const TUNNEL = argv.includes("--tunnel");
+let PUBLIC = String(arg("public", "")).replace(/\/+$/, "");
 const HOST = arg("host", LAN ? "0.0.0.0" : "127.0.0.1");
 const SHARE_TTL = 30 * 60 * 1000;   // 사진 한 장이 남아 있는 시간
 const WEBROOT = path.resolve(arg("dir", path.join(__dirname, "..")));
@@ -63,8 +65,42 @@ function lanAddress() {
   return priv[0] || pick[0] || "";
 }
 const LAN_IP = lanAddress();
-const SHARE_ON = LAN && !!LAN_IP;
-function shareBase() { return "http://" + LAN_IP + ":" + PORT; }
+let TUNNEL_STATE = TUNNEL ? "starting" : "off";
+/* 공개 주소가 있으면 그쪽이 먼저입니다. 다른 망에 있는 폰도 닿습니다. */
+function shareBase() { return PUBLIC || ("http://" + LAN_IP + ":" + PORT); }
+function shareOn() { return !!PUBLIC || (LAN && !!LAN_IP); }
+
+/* cloudflared 가 깔려 있으면 대신 띄워 주고, 찍히는 주소를 받아 씁니다.
+   사진은 여전히 이 컴퓨터에서만 나갑니다 — 터널은 길만 내줍니다. */
+function startTunnel() {
+  const { spawn } = require("child_process");
+  let cp;
+  try {
+    cp = spawn("cloudflared", ["tunnel", "--url", "http://127.0.0.1:" + PORT], { stdio: ["ignore", "pipe", "pipe"] });
+  } catch (e) {
+    TUNNEL_STATE = "missing";
+    return;
+  }
+  cp.on("error", () => {
+    TUNNEL_STATE = "missing";
+    console.log("  cloudflared 를 찾지 못했습니다. https://developers.cloudflare.com/cloudflared 에서 받으세요.");
+  });
+  const look = buf => {
+    const m = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i.exec(String(buf));
+    if (m && !PUBLIC) {
+      PUBLIC = m[0];
+      TUNNEL_STATE = "on";
+      console.log("");
+      console.log("  터널 열림  " + PUBLIC + "/d   (아무 망에서나 열립니다)");
+      console.log("  부스 화면을 새로고침하면 QR 이 이 주소로 바뀝니다.");
+      console.log("");
+    }
+  };
+  cp.stdout.on("data", look);
+  cp.stderr.on("data", look);
+  cp.on("exit", () => { if (!PUBLIC) TUNNEL_STATE = "failed"; });
+  process.on("exit", () => { try { cp.kill(); } catch (e) {} });
+}
 
 /* ── 폰으로 넘겨줄 "지금 사진" 한 장. 디스크에는 쓰지 않습니다. ──
    주소를 /s 하나로 고정해 두면 QR 도 하나로 고정됩니다. 부스에 붙여 둔 QR 을
@@ -209,7 +245,8 @@ const server = http.createServer(async (req, res) => {
     const [printers, def] = await Promise.all([listPrinters(), defaultPrinter()]);
     return json(res, 200, {
       ok: true, platform: process.platform, printers, defaultPrinter: def,
-      share: SHARE_ON, shareBase: SHARE_ON ? shareBase() : "", lanIp: LAN_IP
+      share: shareOn(), shareBase: shareOn() ? shareBase() + "/d" : "",
+      lanIp: LAN_IP, public: PUBLIC, tunnel: TUNNEL_STATE
     });
   }
 
@@ -221,10 +258,10 @@ const server = http.createServer(async (req, res) => {
 
   /* ── 지금 사진을 맡깁니다. 앞 사진은 이 자리에서 버려집니다 ── */
   if (url.startsWith("/share") && req.method === "POST") {
-    if (!SHARE_ON) {
+    if (!shareOn()) {
       return json(res, 503, { ok: false, error: LAN
         ? "이 컴퓨터의 랜 주소를 찾지 못했습니다. 와이파이나 랜선이 연결되어 있는지 보세요."
-        : "QR 로 받으려면 인쇄 서버를 --lan 옵션으로 띄워야 합니다." });
+        : "QR 로 받으려면 인쇄 서버를 --lan (같은 와이파이) 또는 --tunnel (아무 망) 로 띄워야 합니다." });
     }
     try {
       const raw = await readBody(req);
@@ -240,8 +277,8 @@ const server = http.createServer(async (req, res) => {
         at: Date.now(),
         ver: VER
       };
-      console.log(new Date().toLocaleTimeString("ko-KR"), `폰으로 받을 사진 갱신 (${VER}) — ${shareBase()}/s`);
-      return json(res, 200, { ok: true, url: shareBase() + "/s", ver: VER, ttl: SHARE_TTL });
+      console.log(new Date().toLocaleTimeString("ko-KR"), `폰으로 받을 사진 갱신 (${VER}) — ${shareBase()}/d`);
+      return json(res, 200, { ok: true, url: shareBase() + "/d", ver: VER, ttl: SHARE_TTL });
     } catch (e) {
       return json(res, 500, { ok: false, error: String(e.message || e) });
     }
@@ -256,14 +293,27 @@ const server = http.createServer(async (req, res) => {
   if (/^\/s\/photo\.(?:png|jpg)(?:\?|$)/.test(url)) {
     const it = currentPhoto();
     if (!it) { cors(res); res.writeHead(404); return res.end(); }
+    // ?dl 이 붙으면 폰이 열어 보지 않고 곧바로 내려받습니다.
+    const dl = /[?&]dl\b/.test(url);
     cors(res);
     res.writeHead(200, {
       "Content-Type": it.type,
       "Content-Length": it.buf.length,
       "Cache-Control": "no-store",
-      "Content-Disposition": 'inline; filename="fourcut-' + it.ver + '.' + it.ext + '"'
+      "Content-Disposition": (dl ? "attachment" : "inline")
+        + '; filename="fourcut-' + it.ver + '.' + it.ext + '"'
     });
     return res.end(it.buf);
+  }
+
+  /* QR 이 가리키는 주소. 사진이 있으면 페이지를 거치지 않고 바로 내려받습니다. */
+  if (/^\/d(?:\/)?(?:\?|$)/.test(url)) {
+    const it = currentPhoto();
+    res.writeHead(302, {
+      "Location": it ? ("/s/photo." + it.ext + "?dl&v=" + it.ver) : "/s",
+      "Cache-Control": "no-store"
+    });
+    return res.end();
   }
 
   if (/^\/s(?:\/)?(?:\?|$)/.test(url)) {
@@ -289,8 +339,11 @@ const server = http.createServer(async (req, res) => {
       + '다음 사람이 찍으면 이 사진은 사라집니다.</p>'
       + '<script>(function(){'
       + 'var ver=-1;'
+      + 'var first=true;'
       + 'function draw(v,has){'
-      + 'if(v===ver) return; ver=v;'
+      + 'if(v===ver) return;'
+      + 'if(has && !first){ location.href="/s/photo.png?dl&v="+v; return; }'   // 기다리다 사진이 오면 바로 받기
+      + 'ver=v; first=false;'
       + 'var ph=document.getElementById("ph"),dl=document.getElementById("dl");'
       + 'if(!has){ph.hidden=dl.hidden=document.getElementById("tip").hidden=true;'
       + 'document.getElementById("wait").hidden=false;return;}'
@@ -298,7 +351,7 @@ const server = http.createServer(async (req, res) => {
       + 'dl.href="/s/photo.png?v="+v; dl.download="fourcut-"+v+".png"; dl.hidden=false;'
       + 'document.getElementById("tip").hidden=false;'
       + 'document.getElementById("wait").hidden=true;}'
-      + 'draw(' + (it ? it.ver : 0) + ',' + (it ? 'true' : 'false') + ');'
+      + 'draw(' + (it ? it.ver : 0) + ',' + (it ? 'true' : 'false') + ');first=false;'
       + 'setInterval(function(){fetch("/s/ver",{cache:"no-store"}).then(function(r){return r.json();})'
       + '.then(function(j){draw(j.ver,j.has);}).catch(function(){});},2000);'
       + '})();</scr' + 'ipt></html>';
@@ -320,12 +373,17 @@ server.listen(PORT, HOST, async () => {
   console.log("  폴더     " + WEBROOT);
   console.log("  프린터   " + (printers.length ? printers.join(", ") : "(찾지 못함 — 연결과 드라이버를 확인하세요)"));
   console.log("  기본     " + (def || "(없음)"));
-  if (SHARE_ON) {
-    console.log("  폰       " + shareBase() + "/s  (부스에 붙여 둘 고정 QR 주소)");
+  if (TUNNEL) startTunnel();
+  if (PUBLIC) {
+    console.log("  폰       " + shareBase() + "/d  (아무 망에서나 열립니다)");
+  } else if (TUNNEL) {
+    console.log("  폰       터널 여는 중… 주소가 잡히면 여기에 찍힙니다");
+  } else if (shareOn()) {
+    console.log("  폰       " + shareBase() + "/d  (같은 와이파이에서만)");
   } else if (LAN) {
     console.log("  폰       랜 주소를 찾지 못해 QR 공유는 꺼져 있습니다");
   } else {
-    console.log("  폰       꺼짐 — --lan 을 붙여 띄우면 QR 로 사진을 받을 수 있습니다");
+    console.log("  폰       꺼짐 — --lan (같은 와이파이) 또는 --tunnel (아무 망) 을 붙여 띄우세요");
   }
   console.log("  ────────────────────────────────");
   console.log("  이 창을 닫으면 자동 인쇄도 멈춥니다. Ctrl+C 로 종료.");
