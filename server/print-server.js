@@ -195,6 +195,98 @@ async function printFile(file, { printer, copies, media }) {
   };
 }
 
+/* ── 사진을 그림으로 바꾸기 (외부 이미지 생성 AI) ──
+   업체마다 요청 모양이 달라서, 코드에 박지 않고 설정 파일로 받습니다.
+   server/toon.config.json 이 없으면 이 기능은 꺼진 채로 둡니다 — 그때는
+   페이지가 자기 안에서 도는 청사진 필터를 그대로 씁니다. */
+const TOON_FILE = path.join(__dirname, "toon.config.json");
+function toonConfig() {
+  try { return JSON.parse(fs.readFileSync(TOON_FILE, "utf8")); } catch (e) { return null; }
+}
+
+/* ${NAME} 자리를 채웁니다. 값이 통째로 ${...} 하나면 타입을 살려 넣습니다. */
+function fill(node, vars) {
+  if (typeof node === "string") {
+    const whole = /^\$\{([A-Z0-9_]+)\}$/.exec(node);
+    if (whole) return whole[1] in vars ? vars[whole[1]] : node;
+    return node.replace(/\$\{([A-Z0-9_]+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+  }
+  if (Array.isArray(node)) return node.map(v => fill(v, vars));
+  if (node && typeof node === "object") {
+    const out = {};
+    for (const k of Object.keys(node)) out[k] = fill(node[k], vars);
+    return out;
+  }
+  return node;
+}
+
+/* "output.0" 같은 경로로 응답 속을 파고듭니다. */
+function dig(obj, pathStr) {
+  if (!pathStr) return obj;
+  let cur = obj;
+  for (const part of String(pathStr).split(".")) {
+    if (cur == null) return undefined;
+    cur = cur[/^\d+$/.test(part) ? Number(part) : part];
+  }
+  return cur;
+}
+
+async function toBuffer(out, form) {
+  if (typeof out !== "string") throw new Error("결과 이미지를 찾지 못했습니다");
+  if (form === "url" || /^https?:\/\//.test(out)) {
+    const r = await fetch(out);
+    if (!r.ok) throw new Error("결과 이미지를 내려받지 못했습니다 (" + r.status + ")");
+    return Buffer.from(await r.arrayBuffer());
+  }
+  const m = /^data:image\/\w+;base64,(.+)$/s.exec(out);
+  return Buffer.from(m ? m[1] : out, "base64");
+}
+
+async function toonify(dataUrl) {
+  const cfg = toonConfig();
+  if (!cfg || !cfg.endpoint) throw new Error("toon.config.json 이 없습니다");
+
+  const m = /^data:image\/(png|jpeg);base64,(.+)$/s.exec(dataUrl);
+  if (!m) throw new Error("이미지를 찾지 못했습니다");
+  const vars = Object.assign({}, process.env, {
+    IMAGE_DATA_URL: dataUrl,
+    IMAGE_B64: m[2],
+    PROMPT: cfg.prompt || ""
+  });
+
+  const headers = fill(cfg.headers || { "Content-Type": "application/json" }, vars);
+  let r = await fetch(fill(cfg.endpoint, vars), {
+    method: cfg.method || "POST",
+    headers,
+    body: JSON.stringify(fill(cfg.body || {}, vars))
+  });
+  let j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("이미지 AI 가 " + r.status + " 를 돌려주었습니다: " + JSON.stringify(j).slice(0, 300));
+
+  /* 바로 안 주고 "만드는 중" 을 돌려주는 업체는 다 될 때까지 물어봅니다. */
+  if (cfg.poll && cfg.poll.urlPath) {
+    const until = Date.now() + (cfg.poll.timeoutMs || 90000);
+    const wait = cfg.poll.everyMs || 1500;
+    let statusUrl = dig(j, cfg.poll.urlPath);
+    if (!statusUrl) throw new Error("진행 상황을 볼 주소를 찾지 못했습니다");
+    for (;;) {
+      const state = String(dig(j, cfg.poll.statusPath) || "");
+      if (state === (cfg.poll.doneValue || "succeeded")) break;
+      if (cfg.poll.failValues && cfg.poll.failValues.indexOf(state) >= 0) {
+        throw new Error("이미지 AI 가 실패했습니다: " + state);
+      }
+      if (Date.now() > until) throw new Error("이미지 AI 가 제때 끝내지 못했습니다");
+      await new Promise(s => setTimeout(s, wait));
+      const rr = await fetch(statusUrl, { headers });
+      j = await rr.json().catch(() => ({}));
+    }
+  }
+
+  const out = dig(j, cfg.imagePath);
+  const buf = await toBuffer(out, cfg.imageForm);
+  return "data:image/png;base64," + buf.toString("base64");
+}
+
 /* ── HTTP ── */
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -245,9 +337,29 @@ const server = http.createServer(async (req, res) => {
     const [printers, def] = await Promise.all([listPrinters(), defaultPrinter()]);
     return json(res, 200, {
       ok: true, platform: process.platform, printers, defaultPrinter: def,
+      toon: !!toonConfig(),
       share: shareOn(), shareBase: shareOn() ? shareBase() + "/d" : "",
       lanIp: LAN_IP, public: PUBLIC, tunnel: TUNNEL_STATE
     });
+  }
+
+  /* ── 사진 한 장을 그림으로 바꿔 돌려줍니다 ── */
+  if (url.startsWith("/toon") && req.method === "POST") {
+    if (!toonConfig()) {
+      return json(res, 503, { ok: false, error: "AI 변환이 꺼져 있습니다 (server/toon.config.json 없음)" });
+    }
+    try {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString("utf8"));
+      const t0 = Date.now();
+      const image = await toonify(String(body.image || ""));
+      console.log(new Date().toLocaleTimeString("ko-KR"),
+        `AI 변환 한 장 (${Math.round((Date.now() - t0) / 1000)}초)`);
+      return json(res, 200, { ok: true, image });
+    } catch (e) {
+      console.error("AI 변환 실패:", e.message);
+      return json(res, 502, { ok: false, error: String(e.message || e) });
+    }
   }
 
   /* ── 앞 사진을 버립니다 (새로 찍기 시작할 때) ── */

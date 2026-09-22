@@ -1,0 +1,38 @@
+{
+  "_읽어보세요": [
+    "이 파일을 toon.config.json 으로 복사한 뒤, 쓰실 이미지 생성 업체의 요청 모양에 맞춰 채우세요.",
+    "업체마다 주소·헤더·본문 이름이 전부 다릅니다. 그 업체 문서의 curl 예시를 그대로 옮겨 적으면 됩니다.",
+    "${...} 는 서버가 채워 넣습니다:",
+    "  ${IMAGE_DATA_URL}  data:image/png;base64,... 형태의 사진",
+    "  ${IMAGE_B64}       머리말 없는 base64 사진",
+    "  ${PROMPT}          아래 prompt 값",
+    "  그 밖의 대문자 이름은 환경변수에서 가져옵니다 (예: ${TOON_API_KEY}).",
+    "키는 이 파일에 적지 말고 환경변수로 주세요. 이 파일은 .gitignore 에 들어 있습니다."
+  ],
+
+  "prompt": "이 사진을 따뜻한 손그림 애니메이션 한 장면으로 바꿔 주세요. 푸른 청사진 색조로, 인물의 얼굴과 자세와 옷차림은 알아볼 수 있게 남기고, 같은 그림체로 예수님이 곁에 함께 서 계시게 그려 주세요.",
+
+  "endpoint": "https://업체주소/v1/images/edits",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer ${TOON_API_KEY}",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "prompt": "${PROMPT}",
+    "image": "${IMAGE_DATA_URL}"
+  },
+
+  "imagePath": "data.0.b64_json",
+  "imageForm": "b64",
+
+  "_poll": "바로 그림을 주지 않고 '만드는 중' 을 돌려주는 업체만 아래를 쓰고, 아니면 통째로 지우세요.",
+  "poll": {
+    "urlPath": "urls.get",
+    "statusPath": "status",
+    "doneValue": "succeeded",
+    "failValues": ["failed", "canceled"],
+    "everyMs": 1500,
+    "timeoutMs": 90000
+  }
+}

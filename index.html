@@ -158,6 +158,26 @@
     color:rgba(255,255,255,.9);text-shadow:0 1px 14px rgba(10,22,42,.7)
   }
 
+  /* ── 그림으로 바꾸는 중 ── */
+  .toonbox{
+    width:620px;display:flex;flex-direction:column;align-items:center;gap:18px;
+    background:var(--bg);border:1px solid var(--line);border-radius:22px;padding:46px 40px 40px;
+    box-shadow:0 34px 90px rgba(0,0,0,.6);text-align:center
+  }
+  .toonspin{
+    width:56px;height:56px;border-radius:50%;
+    border:2px solid rgba(232,194,122,.22);border-top-color:var(--gold);
+    animation:spin 1s linear infinite
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toontitle{
+    font-family:var(--sans);font-weight:200;font-size:30px;letter-spacing:.2em;
+    color:var(--gold);padding-left:.2em
+  }
+  .toonsub{font-size:15px;color:var(--muted);line-height:1.7;min-height:2.6em}
+  .toonbar{width:100%;height:4px;border-radius:9px;background:rgba(255,255,255,.1);overflow:hidden}
+  .toonbar i{display:block;height:100%;width:0;background:var(--gold);transition:width .3s}
+
   /* ── 관리자 ── */
   .admin{
     position:absolute;inset:0;z-index:20;display:flex;align-items:center;
@@ -458,6 +478,17 @@
     <button class="btn solid" id="againBtn" style="min-width:300px;margin-top:4px">처음으로</button>
   </div>
 </section>
+
+<!-- ══════════ 그림으로 바꾸는 중 ══════════ -->
+<div class="admin" id="toonwrap" hidden>
+  <div class="toonbox">
+    <div class="toonspin" aria-hidden="true"></div>
+    <div class="toontitle">그림으로 바꾸는 중</div>
+    <div class="toonsub" id="toonSub">네 장을 함께 그리고 있습니다</div>
+    <div class="toonbar"><i id="toonBar"></i></div>
+    <button class="btn ghost" id="toonSkip" style="min-width:220px;min-height:52px">그냥 넘어가기</button>
+  </div>
+</div>
 
 <!-- ══════════ 관리자 ══════════ -->
 <div class="admin" id="admin" hidden>
@@ -1355,11 +1386,79 @@
 
   $("toPrintBtn").onclick = function(){
     $("printMsg").textContent = ""; $("printMsg").className = "msg";
-    fontsReady().then(function(){
+    toonRun().then(fontsReady).then(function(){
       renderSheet();
       buildLanes();
       show("s-print");
     });
+  };
+
+  /* ══════ 그림으로 바꾸기 ══════ */
+  /* 청사진으로 찍었고 서버에 AI 설정이 있으면, 고른 넉 장을 한꺼번에 보내
+     그림으로 받아 옵니다. 안 되면 조용히 페이지 안의 청사진 필터로 갑니다. */
+  var TOON = { on:false, skip:false };
+
+  function toonRun(){
+    if(S.filter !== "blue" || !TOON.on || !S.agent.url) return Promise.resolve();
+
+    TOON.skip = false;
+    var shots = S.picked.map(function(i){ return S.shots[i]; });
+    var done = 0, failed = 0;
+    $("toonwrap").hidden = false;
+    $("toonBar").style.width = "0%";
+    $("toonSub").textContent = "넉 장을 함께 그리고 있습니다. 20초쯤 걸립니다.";
+
+    function tick(){
+      $("toonBar").style.width = Math.round(done / shots.length * 100) + "%";
+      $("toonSub").textContent = done < shots.length
+        ? "넉 장 가운데 " + done + "장 되었습니다"
+        : "거의 다 됐습니다";
+    }
+
+    return Promise.all(shots.map(function(shot){
+      return agentFetch("/toon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: shot.canvas.toDataURL("image/jpeg", .92) })
+      }, 120000).then(function(j){
+        if(!j.ok || !j.image) throw new Error(j.error || "");
+        return loadImage(j.image).then(function(img){
+          if(TOON.skip) return;
+          // 받아 온 그림으로 갈아 끼웁니다. 뒤 과정은 그대로 굴러갑니다.
+          var cv = document.createElement("canvas");
+          cv.width = img.naturalWidth || shot.canvas.width;
+          cv.height = img.naturalHeight || shot.canvas.height;
+          cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+          shot.canvas = cv; shot.url = j.image;
+          delete cv.__sty;
+        });
+      }).catch(function(){ failed++; })
+        .then(function(){ done++; tick(); });
+    })).then(function(){
+      $("toonwrap").hidden = true;
+      if(failed === 0 && !TOON.skip){
+        S.filter = "none";      // AI 가 이미 그림으로 바꿔 놨습니다
+      }else if(!TOON.skip){
+        $("printMsg").className = "msg err";
+        $("printMsg").textContent = failed === shots.length
+          ? "AI 변환이 안 돼서 청사진 필터로 뽑았습니다"
+          : "몇 장은 AI 변환이 안 돼 청사진 필터로 뽑았습니다";
+      }
+    });
+  }
+
+  function loadImage(src){
+    return new Promise(function(ok, no){
+      var im = new Image();
+      im.onload = function(){ ok(im); };
+      im.onerror = function(){ no(new Error("그림을 읽지 못했습니다")); };
+      im.src = src;
+    });
+  }
+
+  $("toonSkip").onclick = function(){
+    TOON.skip = true;
+    $("toonwrap").hidden = true;
   };
   $("backBtn").onclick = function(){ show("s-pick"); };
 
@@ -1783,6 +1882,7 @@
       return qrCardState("err", "관리자 설정에서 서버 주소를 넣어 주세요");
     }
     return agentFetch("/health", {}, 2500).then(function(j){
+      TOON.on = !!j.toon;
       if(!j.share || !j.shareBase){
         if(j.tunnel === "starting"){
           // 터널은 몇 초 걸립니다. 열릴 때까지 조용히 다시 물어봅니다.
@@ -1797,6 +1897,7 @@
           ? "cloudflared 가 없습니다. --lan 으로 띄우면 같은 와이파이에서는 됩니다"
           : "인쇄 서버를 --tunnel 이나 --lan 으로 띄우면 QR 이 나옵니다");
       }
+      TOON.on = !!j.toon;
       SHARE.on = true;
       SHARE.url = j.shareBase;
       SHARE.anywhere = !!j.public;
