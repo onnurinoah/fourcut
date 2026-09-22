@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&family=Noto+Sans+KR:wght@200;300;400;500&display=swap">
 <meta name="theme-color" content="#0B0B0D">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230B0B0D'/%3E%3Cg fill='%23E8C27A'%3E%3Crect x='6' y='6' width='9' height='9' rx='1.5'/%3E%3Crect x='17' y='6' width='9' height='9' rx='1.5'/%3E%3Crect x='6' y='17' width='9' height='9' rx='1.5'/%3E%3Crect x='17' y='17' width='9' height='9' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   /* 1920×1080 한 화면. 무대를 고정 크기로 짜고 화면에 맞게 통째로 줄입니다. */
   :root{
@@ -121,8 +122,85 @@
     padding:7px 14px;border-radius:99px;backdrop-filter:blur(4px)
   }
 
-  /* ── 1. 준비 ── */
-  #s-setup{grid-template-columns:600px 1fr;gap:38px}
+  /* ── 1. 첫 화면 ── */
+  #s-setup{padding:0}
+  #s-setup.on{display:block}
+  .home{
+    position:relative;width:100%;height:100%;
+    background:#7E93B3 url("assets/home.jpg") center/cover no-repeat
+  }
+  .gear{
+    position:absolute;top:26px;right:28px;width:56px;height:56px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.3);background:rgba(12,24,44,.18);
+    color:rgba(255,255,255,.72);cursor:pointer;display:flex;align-items:center;
+    justify-content:center;backdrop-filter:blur(5px);transition:.18s
+  }
+  .gear:hover{color:#fff;border-color:rgba(255,255,255,.7);background:rgba(12,24,44,.4)}
+  .gear svg{width:27px;height:27px;display:block}
+  .homeact{
+    position:absolute;left:0;right:0;bottom:108px;
+    display:flex;flex-direction:column;align-items:center;gap:15px
+  }
+  .btn.big{
+    min-width:376px;min-height:88px;border-radius:99px;font-size:23px;
+    letter-spacing:.26em;padding-left:calc(22px + .26em);
+    box-shadow:0 20px 54px rgba(10,22,42,.4)
+  }
+  .homemsg{
+    margin:0;max-width:1100px;text-align:center;font-size:15px;line-height:1.7;
+    color:rgba(255,255,255,.9);text-shadow:0 1px 14px rgba(10,22,42,.7)
+  }
+
+  /* ── 관리자 ── */
+  .admin{
+    position:absolute;inset:0;z-index:20;display:flex;align-items:center;
+    justify-content:center;background:rgba(6,6,9,.78);backdrop-filter:blur(7px)
+  }
+  .admin[hidden]{display:none}
+  .adminbox{
+    width:1792px;height:1000px;display:flex;flex-direction:column;gap:20px;
+    background:var(--bg);border:1px solid var(--line);border-radius:22px;padding:28px 32px 30px;
+    box-shadow:0 34px 90px rgba(0,0,0,.6)
+  }
+  .adminhead{display:flex;align-items:baseline;gap:18px;flex:0 0 auto}
+  .adminhead .t{
+    font-family:var(--sans);font-weight:200;letter-spacing:.32em;
+    font-size:23px;color:var(--gold);padding-left:.32em
+  }
+  .adminhead .s{font-size:13.5px;color:var(--muted)}
+  .adminhead .x{
+    margin-left:auto;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);
+    background:transparent;color:var(--muted);font-size:17px;cursor:pointer;transition:.16s
+  }
+  .adminhead .x:hover{color:var(--ink);border-color:rgba(255,255,255,.34)}
+  .adminbody{
+    flex:1 1 auto;min-height:0;display:grid;
+    grid-template-columns:440px 1fr 1fr;gap:22px
+  }
+  .adminfoot{flex:0 0 auto;display:flex;gap:12px;justify-content:flex-end}
+
+  /* ── QR 로 받기 ── */
+  .qrbox{
+    width:1020px;display:flex;flex-direction:column;gap:26px;
+    background:var(--bg);border:1px solid var(--line);border-radius:22px;padding:28px 32px 36px;
+    box-shadow:0 34px 90px rgba(0,0,0,.6)
+  }
+  .qrmain{display:grid;grid-template-columns:376px 1fr;gap:34px;align-items:center}
+  .qrcode{
+    width:376px;height:376px;background:#fff;border-radius:16px;padding:20px;
+    display:flex;align-items:center;justify-content:center
+  }
+  .qrcode canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+  .qrcode .wait{color:#15140F;font-size:15px;opacity:.55}
+  .qrside{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .qrstep{margin:0;font-size:21px;line-height:1.75;color:var(--ink)}
+  .qrurl{
+    font-family:var(--sans);font-size:17px;letter-spacing:.02em;color:var(--gold);
+    background:#0E0E11;border:1px solid var(--line);border-radius:11px;padding:14px 16px;
+    word-break:break-all;line-height:1.5
+  }
+  .qrnote{margin:0;font-size:14.5px;line-height:1.8;color:var(--muted)}
+  .qrnote.err{color:var(--warn)}
   .col{display:flex;flex-direction:column;min-height:0;gap:20px}
   .panes{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:20px}
 
@@ -258,102 +336,20 @@
 
 <div id="app">
 
-<!-- ══════════ 1. 준비 ══════════ -->
+<!-- ══════════ 1. 첫 화면 ══════════ -->
 <section class="screen on" id="s-setup">
-  <div class="col">
-    <div class="mark">
-      <span class="t">인생네컷</span>
-      <span class="s">여덟 장을 찍고 · 네 장을 고르고 · 종이로</span>
-      <span class="rule"></span>
-    </div>
-    <div class="stagebox">
-      <div class="stage" id="stageSetup">
-        <div class="shotno">미리보기</div>
-      </div>
-    </div>
-  </div>
+  <div class="home">
+    <button class="gear" id="adminBtn" aria-label="관리자 설정" title="관리자 설정">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.2"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
 
-  <div class="col">
-    <div class="panes">
-      <div class="scroll">
-        <div class="card" id="cardPaper">
-          <h3>인화 규격</h3>
-          <div class="row" id="layouts"></div>
-          <p class="hint" id="layoutHint"></p>
-        </div>
-        <div class="card">
-          <h3>카메라</h3>
-          <label class="fld" for="camSel">사용할 카메라</label>
-          <select id="camSel"><option>카메라를 허용하면 목록이 뜹니다</option></select>
-          <div class="row" style="margin-top:12px">
-            <button class="chip" id="mirBtn" aria-pressed="true">좌우 반전<small>거울처럼</small></button>
-            <button class="chip" id="cd3" aria-pressed="true" data-cd="3">카운트 3초</button>
-            <button class="chip" id="cd5" aria-pressed="false" data-cd="5">카운트 5초</button>
-          </div>
-        </div>
-        <div class="card">
-          <h3>프린터</h3>
-          <label class="fld" for="agentIn">자동 인쇄 서버 주소</label>
-          <input type="text" id="agentIn" value="http://localhost:8787" spellcheck="false">
-          <div id="prnWrap" hidden style="margin-top:12px">
-            <label class="fld" for="prnSel">인쇄할 프린터</label>
-            <select id="prnSel"></select>
-          </div>
-          <div class="status"><span class="dot" id="agentDot"></span><span id="agentTxt">확인 중…</span></div>
-          <p class="hint">
-            서버가 없어도 인쇄됩니다. 그때는 브라우저 인쇄창이 뜨고,
-            크롬을 <code>--kiosk-printing</code> 으로 띄워 두면 창 없이 기본 프린터로 바로 나갑니다.
-          </p>
-        </div>
-      </div>
-
-      <div class="scroll">
-        <div class="card">
-          <h3>프레임 템플릿</h3>
-          <div class="row" id="tplList"></div>
-          <label class="fld" style="margin-top:13px" for="tplFile">템플릿 이미지 불러오기 (PNG 권장)</label>
-          <input type="file" id="tplFile" accept="image/png,image/jpeg,image/webp">
-          <div id="tplBody" hidden>
-            <div class="row" style="margin-top:13px">
-              <div class="grow">
-                <label class="fld" for="tplW">종이 가로 mm</label>
-                <input type="text" id="tplW" inputmode="decimal" value="101.6">
-              </div>
-              <div class="grow">
-                <label class="fld" for="tplH">종이 세로 mm</label>
-                <input type="text" id="tplH" inputmode="decimal" value="152.4">
-              </div>
-            </div>
-            <div class="tplprev" id="tplPrev"><img id="tplImg" alt="프레임 템플릿"></div>
-            <div class="row" style="margin-top:12px">
-              <button class="chip" id="slotAdd" style="flex:0 0 auto">칸 추가</button>
-              <button class="chip" id="slotDel" style="flex:0 0 auto">마지막 칸 지우기</button>
-              <button class="chip" id="slotOrder" aria-pressed="false" style="flex:0 0 auto">순서 정하기</button>
-              <button class="chip" id="slotCopy" style="flex:0 0 auto">좌표 복사</button>
-              <button class="chip" id="tplFootBtn" aria-pressed="false" style="flex:0 0 auto">아래 문구 넣기</button>
-            </div>
-            <p class="hint" id="tplHint"></p>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>꾸미기</h3>
-          <label class="fld">사진 톤</label>
-          <div class="row" id="filters"></div>
-          <label class="fld" style="margin-top:14px">테두리 색</label>
-          <div class="row" id="frames"></div>
-          <label class="fld" style="margin-top:14px" for="capIn">아래쪽 문구</label>
-          <div class="row">
-            <input type="text" id="capIn" class="grow" maxlength="18" placeholder="인생네컷" value="인생네컷">
-            <button class="chip" id="dateBtn" aria-pressed="true" style="flex:0 0 auto;min-width:112px">날짜 넣기</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="btns">
-      <button class="btn ghost" id="recheck" style="flex:0 0 260px">프린터 다시 확인</button>
-      <button class="btn solid grow" id="startBtn">촬영 시작</button>
+    <div class="homeact">
+      <button class="btn solid big" id="startBtn">촬영 시작</button>
+      <p class="homemsg" id="homeMsg"></p>
     </div>
   </div>
 </section>
@@ -419,8 +415,9 @@
       <span class="msg grow" id="printMsg" style="text-align:right"></span>
     </div>
     <div class="btns">
-      <button class="btn ghost" id="backBtn" style="flex:0 0 160px">다시 고르기</button>
-      <button class="btn ghost" id="saveBtn" style="flex:0 0 120px">저장</button>
+      <button class="btn ghost" id="backBtn" style="flex:0 0 138px">다시 고르기</button>
+      <button class="btn ghost" id="saveBtn" style="flex:0 0 96px">저장</button>
+      <button class="btn ghost" id="qrBtn" style="flex:0 0 176px">폰으로 받기</button>
       <button class="btn solid grow" id="printBtn">인쇄하기</button>
     </div>
   </div>
@@ -431,9 +428,130 @@
   <div class="done">
     <div class="big">인쇄 중</div>
     <div class="sub" id="doneTxt"></div>
-    <button class="btn" id="againBtn" style="min-width:300px;margin-top:10px">처음으로</button>
+    <div class="btns" style="margin-top:10px">
+      <button class="btn" id="qrBtn2" style="min-width:260px">폰으로 받기</button>
+      <button class="btn solid" id="againBtn" style="min-width:260px">처음으로</button>
+    </div>
   </div>
 </section>
+
+<!-- ══════════ QR 로 받기 ══════════ -->
+<div class="admin" id="qrwrap" hidden>
+  <div class="qrbox">
+    <div class="adminhead">
+      <span class="t">폰으로 받기</span>
+      <button class="x" id="qrClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="qrmain">
+      <div class="qrcode" id="qrCode"></div>
+      <div class="qrside">
+        <p class="qrstep">휴대폰 카메라로 이 QR 을 비추세요.<br>같은 와이파이에 있어야 합니다.</p>
+        <div class="qrurl" id="qrUrl"></div>
+        <p class="qrnote" id="qrNote">사진은 30분 뒤에 저절로 지워집니다.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ 관리자 ══════════ -->
+<div class="admin" id="admin" hidden>
+  <div class="adminbox">
+    <div class="adminhead">
+      <span class="t">관리자 설정</span>
+      <span class="s">촬영 화면에는 나오지 않습니다</span>
+      <button class="x" id="adminClose" aria-label="닫기">✕</button>
+    </div>
+
+    <div class="adminbody">
+      <div class="col">
+        <div class="stagebox">
+          <div class="stage" id="stageSetup">
+            <div class="shotno">미리보기</div>
+          </div>
+        </div>
+      </div>
+    <div class="scroll">
+      <div class="card" id="cardPaper">
+        <h3>인화 규격</h3>
+        <div class="row" id="layouts"></div>
+        <p class="hint" id="layoutHint"></p>
+      </div>
+      <div class="card">
+        <h3>카메라</h3>
+        <label class="fld" for="camSel">사용할 카메라</label>
+        <select id="camSel"><option>카메라를 허용하면 목록이 뜹니다</option></select>
+        <div class="row" style="margin-top:12px">
+          <button class="chip" id="mirBtn" aria-pressed="true">좌우 반전<small>거울처럼</small></button>
+          <button class="chip" id="cd3" aria-pressed="true" data-cd="3">카운트 3초</button>
+          <button class="chip" id="cd5" aria-pressed="false" data-cd="5">카운트 5초</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>프린터</h3>
+        <label class="fld" for="agentIn">자동 인쇄 서버 주소</label>
+        <input type="text" id="agentIn" value="http://localhost:8787" spellcheck="false">
+        <div id="prnWrap" hidden style="margin-top:12px">
+          <label class="fld" for="prnSel">인쇄할 프린터</label>
+          <select id="prnSel"></select>
+        </div>
+        <div class="status"><span class="dot" id="agentDot"></span><span id="agentTxt">확인 중…</span></div>
+        <p class="hint">
+          서버가 없어도 인쇄됩니다. 그때는 브라우저 인쇄창이 뜨고,
+          크롬을 <code>--kiosk-printing</code> 으로 띄워 두면 창 없이 기본 프린터로 바로 나갑니다.
+        </p>
+      </div>
+    </div>
+
+    <div class="scroll">
+      <div class="card">
+        <h3>프레임 템플릿</h3>
+        <div class="row" id="tplList"></div>
+        <label class="fld" style="margin-top:13px" for="tplFile">템플릿 이미지 불러오기 (PNG 권장)</label>
+        <input type="file" id="tplFile" accept="image/png,image/jpeg,image/webp">
+        <div id="tplBody" hidden>
+          <div class="row" style="margin-top:13px">
+            <div class="grow">
+              <label class="fld" for="tplW">종이 가로 mm</label>
+              <input type="text" id="tplW" inputmode="decimal" value="101.6">
+            </div>
+            <div class="grow">
+              <label class="fld" for="tplH">종이 세로 mm</label>
+              <input type="text" id="tplH" inputmode="decimal" value="152.4">
+            </div>
+          </div>
+          <div class="tplprev" id="tplPrev"><img id="tplImg" alt="프레임 템플릿"></div>
+          <div class="row" style="margin-top:12px">
+            <button class="chip" id="slotAdd" style="flex:0 0 auto">칸 추가</button>
+            <button class="chip" id="slotDel" style="flex:0 0 auto">마지막 칸 지우기</button>
+            <button class="chip" id="slotOrder" aria-pressed="false" style="flex:0 0 auto">순서 정하기</button>
+            <button class="chip" id="slotCopy" style="flex:0 0 auto">좌표 복사</button>
+            <button class="chip" id="tplFootBtn" aria-pressed="false" style="flex:0 0 auto">아래 문구 넣기</button>
+          </div>
+          <p class="hint" id="tplHint"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>꾸미기</h3>
+        <label class="fld">사진 톤</label>
+        <div class="row" id="filters"></div>
+        <label class="fld" style="margin-top:14px">테두리 색</label>
+        <div class="row" id="frames"></div>
+        <label class="fld" style="margin-top:14px" for="capIn">아래쪽 문구</label>
+        <div class="row">
+          <input type="text" id="capIn" class="grow" maxlength="18" placeholder="인생네컷" value="인생네컷">
+          <button class="chip" id="dateBtn" aria-pressed="true" style="flex:0 0 auto;min-width:112px">날짜 넣기</button>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div class="adminfoot">
+      <button class="btn ghost" id="recheck" style="flex:0 0 240px">프린터 다시 확인</button>
+      <button class="btn solid" id="adminDone" style="flex:0 0 220px">완료</button>
+    </div>
+  </div>
+</div>
 
 </div>
 
@@ -561,8 +679,21 @@
     var vid = $("vid");
     if(host && vid.parentNode !== host) host.insertBefore(vid, host.firstChild);
     else if(!host && vid.parentNode !== document.body) document.body.appendChild(vid);
+    if(host && vid.srcObject) vid.play().catch(function(){});
   }
   show("s-setup");
+
+  /* ══════ 관리자 ══════ */
+  function adminOpen(on){
+    $("admin").hidden = !on;
+    if(on && S.stream) $("vid").play().catch(function(){});
+  }
+  $("adminBtn").onclick   = function(){ adminOpen(true); };
+  $("adminClose").onclick = function(){ adminOpen(false); };
+  $("adminDone").onclick  = function(){ adminOpen(false); };
+  $("admin").addEventListener("mousedown", function(e){
+    if(e.target === $("admin")) adminOpen(false);   // 바깥을 누르면 닫습니다.
+  });
 
   /* ══════ 준비 화면 ══════ */
   function buildChips(box, dict, get, set){
@@ -1233,7 +1364,312 @@
     msg.className = "msg ok"; msg.textContent = "이미지를 저장했습니다";
   };
 
+  /* ══════ QR 코드 ══════ */
+  /* 부스는 인터넷이 끊겨도 돌아야 해서 라이브러리를 쓰지 않고 직접 만듭니다.
+     바이트 모드 · 오류정정 M · 버전 1~10 — 주소 하나 담기에 넉넉합니다. */
+  var QR = (function(){
+    var EXP = [], LOG = [], i, x = 1;
+    for(i=0;i<255;i++){ EXP[i] = x; LOG[x] = i; x <<= 1; if(x & 0x100) x ^= 0x11D; }
+    for(i=255;i<512;i++) EXP[i] = EXP[i-255];
+    function mul(a,b){ return (a && b) ? EXP[LOG[a]+LOG[b]] : 0; }
+
+    /* 오류정정 M 의 블록 짜임 — [정정부호 수, 1군 블록, 1군 자료, 2군 블록, 2군 자료] */
+    var RS = [null,
+      [10,1,16,0,0], [16,1,28,0,0], [26,1,44,0,0], [18,2,32,0,0], [24,2,43,0,0],
+      [16,4,27,0,0], [18,4,31,0,0], [22,2,38,2,39], [22,3,36,2,37], [26,4,43,1,44]];
+    var ALIGN = [null, [], [6,18], [6,22], [6,26], [6,30], [6,34],
+      [6,22,38], [6,24,42], [6,26,46], [6,28,50]];
+
+    function genPoly(n){
+      var g = [1], k, j, ng;
+      for(k=0;k<n;k++){
+        ng = []; for(j=0;j<=g.length;j++) ng[j] = 0;
+        for(j=0;j<g.length;j++){ ng[j] ^= g[j]; ng[j+1] ^= mul(g[j], EXP[k]); }
+        g = ng;
+      }
+      return g;
+    }
+    function ecc(data, n){
+      var g = genPoly(n), rem = data.slice(), k, j, f;
+      for(k=0;k<n;k++) rem.push(0);
+      for(k=0;k<data.length;k++){
+        f = rem[k]; if(!f) continue;
+        for(j=0;j<g.length;j++) rem[k+j] ^= mul(g[j], f);
+      }
+      return rem.slice(data.length);
+    }
+    function bch(v, poly, deg){
+      var d = v << deg, n;
+      function top(a){ var c = 0; while(a){ c++; a >>>= 1; } return c; }
+      n = top(poly);
+      while(top(d) >= n) d ^= poly << (top(d) - n);
+      return (v << deg) | d;
+    }
+    function utf8(s){
+      var out = [], k, c;
+      for(k=0;k<s.length;k++){
+        c = s.charCodeAt(k);
+        if(c < 0x80) out.push(c);
+        else if(c < 0x800){ out.push(0xC0 | (c>>6), 0x80 | (c & 63)); }
+        else if(c < 0xD800 || c >= 0xE000){ out.push(0xE0 | (c>>12), 0x80 | ((c>>6) & 63), 0x80 | (c & 63)); }
+        else { c = 0x10000 + (((c & 1023) << 10) | (s.charCodeAt(++k) & 1023));
+               out.push(0xF0 | (c>>18), 0x80 | ((c>>12) & 63), 0x80 | ((c>>6) & 63), 0x80 | (c & 63)); }
+      }
+      return out;
+    }
+
+    /* 글자 → 코드워드 */
+    function codewords(text){
+      var b = utf8(text), ver, total, cc, need, r, k, j;
+      for(ver=1; ver<=10; ver++){
+        total = RS[ver][1]*RS[ver][2] + RS[ver][3]*RS[ver][4];
+        cc = ver < 10 ? 8 : 16;
+        need = 4 + cc + 8*b.length;
+        if(need <= total*8) break;
+      }
+      if(ver > 10) throw new Error("주소가 너무 깁니다");
+
+      var bits = [];
+      function put(val, n){ for(var t=n-1;t>=0;t--) bits.push((val >> t) & 1); }
+      put(4, 4); put(b.length, cc);
+      for(k=0;k<b.length;k++) put(b[k], 8);
+      for(k=0; k<4 && bits.length < total*8; k++) bits.push(0);
+      while(bits.length % 8) bits.push(0);
+
+      var words = [];
+      for(k=0;k<bits.length;k+=8){
+        var v = 0; for(j=0;j<8;j++) v = (v<<1) | bits[k+j];
+        words.push(v);
+      }
+      var pad = [0xEC, 0x11];
+      for(k=0; words.length < total; k++) words.push(pad[k % 2]);
+
+      /* 블록으로 나누고, 자료끼리·정정부호끼리 번갈아 엮습니다. */
+      var spec = RS[ver], blocks = [], ecs = [], at = 0;
+      function take(count, size){
+        for(var t=0;t<count;t++){
+          var d = words.slice(at, at + size); at += size;
+          blocks.push(d); ecs.push(ecc(d, spec[0]));
+        }
+      }
+      take(spec[1], spec[2]); take(spec[3], spec[4]);
+
+      var out = [], maxD = Math.max(spec[2], spec[4]);
+      for(k=0;k<maxD;k++) for(j=0;j<blocks.length;j++) if(k < blocks[j].length) out.push(blocks[j][k]);
+      for(k=0;k<spec[0];k++) for(j=0;j<ecs.length;j++) out.push(ecs[j][k]);
+      return { ver: ver, words: out };
+    }
+
+    function maskOf(n, i, j){
+      switch(n){
+        case 0: return (i+j) % 2 === 0;
+        case 1: return i % 2 === 0;
+        case 2: return j % 3 === 0;
+        case 3: return (i+j) % 3 === 0;
+        case 4: return (Math.floor(i/2) + Math.floor(j/3)) % 2 === 0;
+        case 5: return ((i*j) % 2) + ((i*j) % 3) === 0;
+        case 6: return (((i*j) % 2) + ((i*j) % 3)) % 2 === 0;
+        default:return (((i*j) % 3) + ((i+j) % 2)) % 2 === 0;
+      }
+    }
+
+    function build(text){
+      var enc = codewords(text), ver = enc.ver, size = ver*4 + 17;
+      var m = [], fn = [], r, c, bestN = 0;
+      for(r=0;r<size;r++){ m[r] = []; fn[r] = []; for(c=0;c<size;c++){ m[r][c] = 0; fn[r][c] = 0; } }
+      function set(r, c, v){ m[r][c] = v ? 1 : 0; fn[r][c] = 1; }
+
+      /* 세 귀퉁이의 찾기 무늬와 그 둘레의 여백 */
+      function finder(r0, c0){
+        for(var r=-1;r<=7;r++) for(var c=-1;c<=7;c++){
+          var rr = r0+r, cc = c0+c;
+          if(rr < 0 || cc < 0 || rr >= size || cc >= size) continue;
+          var on = (r >= 0 && r <= 6 && (c === 0 || c === 6)) ||
+                   (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||
+                   (r >= 2 && r <= 4 && c >= 2 && c <= 4);
+          set(rr, cc, on);
+        }
+      }
+      finder(0, 0); finder(0, size-7); finder(size-7, 0);
+
+      /* 맞춤 무늬 — 찾기 무늬와 겹치는 자리는 건너뜁니다. */
+      var pos = ALIGN[ver], a, b2;
+      for(a=0;a<pos.length;a++) for(b2=0;b2<pos.length;b2++){
+        var pr = pos[a], pc = pos[b2];
+        if(fn[pr][pc]) continue;
+        for(r=-2;r<=2;r++) for(c=-2;c<=2;c++)
+          set(pr+r, pc+c, r === -2 || r === 2 || c === -2 || c === 2 || (r === 0 && c === 0));
+      }
+
+      /* 눈금 무늬 */
+      for(r=8;r<size-8;r++){ if(!fn[r][6]) set(r, 6, r % 2 === 0); if(!fn[6][r]) set(6, r, r % 2 === 0); }
+
+      /* 형식·버전·검은 칸 자리는 잡아만 두고 비워 둡니다. 마스크 벌점은
+         이 자리들을 밝은 칸으로 두고 매기는 것이 널리 쓰이는 방식이라, 값은
+         마스크를 고른 뒤에 채웁니다. */
+      set(size-8, 8, 0);
+      for(r=0;r<9;r++){ if(!fn[r][8]) set(r, 8, 0); if(!fn[8][r]) set(8, r, 0); }
+      for(r=0;r<8;r++){ if(!fn[8][size-1-r]) set(8, size-1-r, 0); if(!fn[size-1-r][8]) set(size-1-r, 8, 0); }
+      if(ver >= 7){
+        for(i=0;i<18;i++){
+          set(Math.floor(i/3), (i % 3) + size - 11, 0);
+          set((i % 3) + size - 11, Math.floor(i/3), 0);
+        }
+      }
+
+      /* 자료를 오른쪽 아래부터 지그재그로 채웁니다. */
+      var w = enc.words, bit = 7, byt = 0, up = -1, row = size-1, col, k, cell;
+      for(col=size-1; col>0; col-=2){
+        if(col === 6) col--;
+        for(;;){
+          for(k=0;k<2;k++){
+            if(!fn[row][col-k]){
+              var dark = 0;
+              if(byt < w.length) dark = (w[byt] >>> bit) & 1;
+              m[row][col-k] = dark;
+              bit--; if(bit < 0){ bit = 7; byt++; }
+            }
+          }
+          row += up;
+          if(row < 0 || row >= size){ row -= up; up = -up; break; }
+        }
+      }
+
+      /* 여덟 가지 마스크를 다 씌워 보고 벌점이 가장 낮은 것을 고릅니다. */
+      var best = null, bestPen = Infinity, n, g;
+      for(n=0;n<8;n++){
+        g = [];
+        for(r=0;r<size;r++){ g[r] = []; for(c=0;c<size;c++) g[r][c] = fn[r][c] ? m[r][c] : (m[r][c] ^ (maskOf(n,r,c) ? 1 : 0)); }
+        var p = penalty(g, size);
+        if(p < bestPen){ bestPen = p; best = g; bestN = n; }
+      }
+
+      /* 고른 마스크에 맞춰 형식 정보를 적고, 비워 뒀던 자리를 채웁니다. */
+      var fb = bch((0 << 3) | bestN, 0x537, 10) ^ 0x5412;   // 오류정정 M = 00
+      for(i=0;i<15;i++){
+        var on2 = ((fb >> i) & 1) === 1 ? 1 : 0;
+        if(i < 6) best[i][8] = on2; else if(i < 8) best[i+1][8] = on2; else best[size-15+i][8] = on2;
+        if(i < 8) best[8][size-1-i] = on2; else if(i === 8) best[8][7] = on2; else best[8][14-i] = on2;
+      }
+      best[size-8][8] = 1;
+      if(ver >= 7){
+        var vb = bch(ver, 0x1F25, 12);
+        for(i=0;i<18;i++){
+          var on3 = ((vb >> i) & 1) === 1 ? 1 : 0;
+          best[Math.floor(i/3)][(i % 3) + size - 11] = on3;
+          best[(i % 3) + size - 11][Math.floor(i/3)] = on3;
+        }
+      }
+      return best;
+    }
+
+    function penalty(g, size){
+      var p = 0, r, c, k, run, dark = 0;
+      /* ① 같은 색이 다섯 칸 넘게 이어질 때 */
+      for(r=0;r<size;r++){
+        run = 1;
+        for(c=1;c<size;c++){
+          if(g[r][c] === g[r][c-1]) run++;
+          else { if(run >= 5) p += 3 + (run-5); run = 1; }
+        }
+        if(run >= 5) p += 3 + (run-5);
+      }
+      for(c=0;c<size;c++){
+        run = 1;
+        for(r=1;r<size;r++){
+          if(g[r][c] === g[r-1][c]) run++;
+          else { if(run >= 5) p += 3 + (run-5); run = 1; }
+        }
+        if(run >= 5) p += 3 + (run-5);
+      }
+      /* ② 같은 색 2×2 덩어리 */
+      for(r=0;r<size-1;r++) for(c=0;c<size-1;c++){
+        var v = g[r][c];
+        if(v === g[r][c+1] && v === g[r+1][c] && v === g[r+1][c+1]) p += 3;
+      }
+      /* ③ 찾기 무늬를 닮은 줄 */
+      var P1 = [1,0,1,1,1,0,1,0,0,0,0], P2 = [0,0,0,0,1,0,1,1,1,0,1];
+      function look(get){
+        for(k=0;k+11<=size;k++){
+          var a = true, b = true, t;
+          for(t=0;t<11;t++){ if(get(k+t) !== P1[t]) a = false; if(get(k+t) !== P2[t]) b = false; }
+          if(a || b) p += 40;
+        }
+      }
+      for(r=0;r<size;r++) look((function(rr){ return function(t){ return g[rr][t]; }; })(r));
+      for(c=0;c<size;c++) look((function(cc){ return function(t){ return g[t][cc]; }; })(c));
+      /* ④ 검은 칸 비율이 절반에서 멀수록 */
+      for(r=0;r<size;r++) for(c=0;c<size;c++) if(g[r][c]) dark++;
+      p += Math.floor(Math.abs(dark*100/(size*size) - 50) / 5) * 10;
+      return p;
+    }
+
+    return { matrix: build };
+  })();
+
+  /* QR 을 흰 바탕 캔버스에 그립니다. 둘레 여백(조용한 구역)이 없으면 못 읽습니다. */
+  function drawQR(box, text){
+    var m = QR.matrix(text), n = m.length, q = 4, px = 8, side = (n + q*2) * px;
+    var cv = document.createElement("canvas");
+    cv.width = cv.height = side;
+    var g = cv.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, side, side);
+    g.fillStyle = "#000";
+    for(var r=0;r<n;r++) for(var c=0;c<n;c++)
+      if(m[r][c]) g.fillRect((c+q)*px, (r+q)*px, px, px);
+    box.innerHTML = ""; box.appendChild(cv);
+  }
+
+  function qrShow(on){ $("qrwrap").hidden = !on; }
+  $("qrClose").onclick = function(){ qrShow(false); };
+  $("qrwrap").addEventListener("mousedown", function(e){
+    if(e.target === $("qrwrap")) qrShow(false);
+  });
+
+  function qrFail(why){
+    $("qrCode").innerHTML = '<span class="wait">QR 을 만들지 못했습니다</span>';
+    $("qrUrl").textContent = "";
+    var note = $("qrNote");
+    note.className = "qrnote err"; note.textContent = why;
+  }
+
+  function shareToPhone(){
+    if(!S.sheet) return;
+    qrShow(true);
+    $("qrCode").innerHTML = '<span class="wait">사진을 올리는 중…</span>';
+    $("qrUrl").textContent = "";
+    $("qrNote").className = "qrnote";
+    $("qrNote").textContent = "사진은 30분 뒤에 저절로 지워집니다.";
+
+    if(!S.agent.url){
+      return qrFail("인쇄 서버 주소가 비어 있습니다. 관리자 설정에서 넣어 주세요.");
+    }
+    agentFetch("/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: S.sheet.toDataURL("image/png") })
+    }, 20000).then(function(j){
+      if(!j.ok) throw new Error(j.error || "서버가 거절했습니다");
+      drawQR($("qrCode"), j.url);
+      $("qrUrl").textContent = j.url;
+      var mins = Math.round((j.ttl || 1800000) / 60000);
+      $("qrNote").className = "qrnote";
+      $("qrNote").textContent = "사진은 " + mins + "분 뒤에 저절로 지워집니다. 부스 밖으로는 나가지 않습니다.";
+    }).catch(function(e){
+      var why = String(e && e.message || e);
+      if(/Failed to fetch|NetworkError|aborted|abort/i.test(why)){
+        why = "인쇄 서버에 닿지 못했습니다. 그 컴퓨터에서 node server/print-server.js --lan 으로 띄웠는지 보세요.";
+      }else if(/503/.test(why)){
+        why = "QR 로 받으려면 인쇄 서버를 --lan 옵션으로 띄워야 합니다.";
+      }
+      qrFail(why);
+    });
+  }
+  $("qrBtn").onclick  = shareToPhone;
+  $("qrBtn2").onclick = shareToPhone;
+
   $("againBtn").onclick = function(){
+    qrShow(false);
     S.shots = []; S.picked = []; S.sheet = null; setCopies(1);
     $("printArea").innerHTML = "";
     show("s-setup");
@@ -1542,17 +1978,23 @@
   checkAgent();
   tplInit();
   if(!secure()){
+    var warn = "카메라는 https 주소이거나 localhost 에서만 켜집니다. 배포한 주소(https)로 접속하거나, 같이 넣어 둔 인쇄 서버를 띄워 http://localhost:8787 로 여세요.";
     $("startBtn").disabled = true;
     $("camSel").innerHTML = "<option>https 또는 localhost 에서 열어 주세요</option>";
-    $("layoutHint").textContent =
-      "카메라는 https 주소이거나 localhost 에서만 켜집니다. 배포한 주소(https)로 접속하거나, 같이 넣어 둔 인쇄 서버를 띄워 http://localhost:8787 로 여세요.";
+    $("layoutHint").textContent = warn;
+    $("homeMsg").textContent = warn;
   }else{
     // 준비 화면부터 카메라를 켜 둡니다. 촬영이 끊기지 않고, 구도도 미리 잡을 수 있습니다.
     openCamera(S.deviceId).catch(function(){ listCameras(); });
   }
 
   document.addEventListener("keydown", function(e){
-    if(e.code === "Space" && document.getElementById("s-setup").classList.contains("on")){
+    var tag = (e.target && e.target.tagName || "").toLowerCase();
+    if(tag === "input" || tag === "select" || tag === "textarea") return;
+    if(e.code === "Escape" && !$("qrwrap").hidden){ qrShow(false); return; }
+    if(e.code === "Escape" && !$("admin").hidden){ adminOpen(false); return; }
+    if(e.code === "Space" && $("admin").hidden
+       && document.getElementById("s-setup").classList.contains("on")){
       e.preventDefault(); $("startBtn").click();
     }
   });
