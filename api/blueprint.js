@@ -2,20 +2,12 @@ const WINDOW_MS = 10 * 60 * 1000;
 const MAX_REQUESTS = 6;
 const seen = globalThis.__blueprintRate || (globalThis.__blueprintRate = new Map());
 
-const PROMPTS = {
-  animation: [
-    "Edit this input photo into a warm, hand-drawn Japanese animated feature film scene.",
-    "Preserve the identity of every person: face, expression, hairstyle, body shape, pose, clothing, glasses, and the number of people should remain recognizable and faithful to the source photo.",
-    "Use soft watercolor-like textures, natural light, gentle cinematic depth, and a warm inviting atmosphere.",
-    "Do not add text, logos, captions, or watermarks. Avoid exaggerated facial changes, beauty retouching, or distorted hands and eyes."
-  ].join(" "),
-  jesus: [
-    "Edit this input photo into a natural, peaceful scene where the same person or people from the source photo are together with Jesus.",
-    "Preserve the source person's identity, face, expression, hairstyle, body shape, pose, clothing, glasses, and number of people as faithfully as possible.",
-    "Depict Jesus as a humble first-century Palestinian Jewish man with simple clothing and a calm, compassionate expression, standing or walking naturally beside the photographed person or people.",
-    "Keep the scene warm, safe, reverent, and believable. Avoid fantasy effects, exaggerated halos, text, logos, captions, or watermarks."
-  ].join(" ")
-};
+const PROMPT = [
+  "Edit this input photo into a natural, peaceful scene where the same person or people from the source photo are together with Jesus.",
+  "Preserve the source person's identity, face, expression, hairstyle, body shape, pose, clothing, glasses, and number of people as faithfully as possible.",
+  "Depict Jesus as a humble first-century Palestinian Jewish man with simple clothing and a calm, compassionate expression, standing or walking naturally beside the photographed person or people.",
+  "Keep the scene warm, safe, reverent, and believable. Avoid fantasy effects, exaggerated halos, text, logos, captions, or watermarks. Do not add any Bible verse text inside the generated image."
+].join(" ");
 
 function json(res, status, body) {
   res.status(status).json(body);
@@ -105,14 +97,10 @@ module.exports = async (req, res) => {
     if (!image) return json(res, 400, { ok: false, error: "원본 사진이 없습니다." });
 
     const started = Date.now();
-    const [animation, jesus] = await Promise.all([
-      editImage(image, PROMPTS.animation),
-      editImage(image, PROMPTS.jesus)
-    ]);
+    const jesus = await editImage(image, PROMPT);
 
     return json(res, 200, {
       ok: true,
-      animation,
       jesus,
       elapsedMs: Date.now() - started
     });

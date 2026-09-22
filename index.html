@@ -240,15 +240,14 @@
 
   /* ── 청사진 AI ── */
   #s-blueprint{grid-template-columns:1fr 560px;gap:34px}
-  .bpresults{min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:center}
-  .bpcard{min-height:0;background:#111217;border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.42)}
+  .bpresults{min-height:0;display:flex;align-items:center;justify-content:center}
+  .bpcard{min-height:0;background:#111217;border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.42);width:min(100%,680px)}
   .bpcard .imgbox{position:relative;aspect-ratio:4/3;background:#0B0B0D;display:flex;align-items:center;justify-content:center;overflow:hidden}
   .bpcard img{width:100%;height:100%;object-fit:cover;display:block}
   .bpcard .loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);background:rgba(11,11,13,.76);backdrop-filter:blur(3px)}
   .bpload{width:36px;height:36px;border-radius:50%;border:2px solid rgba(232,194,122,.2);border-top-color:var(--gold);animation:spin 1s linear infinite}
-  .bpcard .meta{padding:17px 18px 18px}
-  .bpcard .meta strong{display:block;font-size:18px;font-weight:400;color:var(--ink);margin-bottom:4px}
-  .bpcard .meta span{display:block;font-size:12.5px;color:var(--muted);line-height:1.55}
+  .versebox{padding:24px 28px 28px;background:#F5F1E8;min-height:118px;display:flex;align-items:center;justify-content:center;text-align:center}
+  .verse{font-family:"Noto Sans KR",sans-serif;color:#1B2436;font-size:clamp(20px,2.2vw,30px);line-height:1.7;letter-spacing:-.03em;word-break:keep-all;font-weight:400}
   .bpright{min-height:0;display:flex;flex-direction:column;gap:18px}
   .bpintro{padding:2px 4px 0}
   .bpintro .eyebrow{font-family:var(--sans);font-size:11px;letter-spacing:.25em;color:var(--gold);margin-bottom:10px}
@@ -509,26 +508,21 @@
 <!-- ══════════ 청사진 AI 결과 ══════════ -->
 <section class="screen" id="s-blueprint">
   <div class="bpresults">
-    <article class="bpcard">
-      <div class="imgbox">
-        <img id="bpAnim" alt="지브리 감성 애니메이션 버전" hidden>
-        <div class="loading" id="bpAnimLoading"><div class="bpload"></div><span>애니메이션 장면을 만들고 있어요</span></div>
-      </div>
-      <div class="meta"><strong>지브리 감성 애니메이션</strong><span>찍은 사진의 표정과 분위기를 살린 따뜻한 손그림 영화풍</span></div>
-    </article>
-    <article class="bpcard">
+    <article class="bpcard bp-maincard">
       <div class="imgbox">
         <img id="bpJesus" alt="예수님과 함께한 모습" hidden>
         <div class="loading" id="bpJesusLoading"><div class="bpload"></div><span>예수님과 함께한 장면을 만들고 있어요</span></div>
       </div>
-      <div class="meta"><strong>예수님과 함께</strong><span>내 모습은 그대로, 예수님이 곁에 계신 장면</span></div>
+      <div class="versebox" id="bpVerseBox">
+        <div class="verse" id="bpVerse" aria-live="polite"></div>
+      </div>
     </article>
   </div>
   <div class="bpright">
     <div class="bpintro">
       <div class="eyebrow">BLUEPRINT</div>
       <h2>당신의 청사진이<br>완성되었습니다.</h2>
-      <p>AI가 찍은 사진을 바탕으로 두 장면을 만들었습니다.<br>아래 QR로 원본과 완성본을 모두 받아갈 수 있습니다.</p>
+      <p>찍은 사진을 바탕으로 예수님과 함께한 장면을 만들었습니다.<br>사진 아래에는 한 구절의 말씀이 무작위로 담깁니다.</p>
     </div>
     <div class="bpstate" id="bpState">AI 이미지를 만드는 중입니다. 잠시만 기다려 주세요.</div>
     <div class="qrcard bpqrcard" id="bpQrCard">
@@ -829,7 +823,7 @@
     caption:"인생네컷", withDate:true, mirror:true, countdown:3,
     copies:1, deviceId:null, stream:null,
     shots:[], picked:[], sheet:null,
-    blueprintMode:false, blueprint:{ original:null, animation:null, jesus:null, ready:false },
+    blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
     agent:{ url:"http://localhost:8787", ok:false, printer:"" },
     busy:false, abort:false
   };
@@ -1161,7 +1155,7 @@
     beep(520, .05, .04); // 소리 권한을 이 손짓에서 얻어 둡니다
     qrClear();           // 앞 사람 사진은 여기서 버립니다
     S.blueprintMode = !!blueprintMode;
-    S.blueprint = { original:null, animation:null, jesus:null, ready:false };
+    S.blueprint = { original:null, jesus:null, verse:null, ready:false };
     if(blueprintMode){
       S.filter = "blue"; S.frame = "navy";
     }else if(S.filter === "blue"){
@@ -1240,9 +1234,28 @@
   }
 
   /* ══════ 청사진 AI ══════ */
+  var BLUEPRINT_VERSES = [
+    {text:"두려워하지 말라 내가 너와 함께 함이라", ref:"이사야 41:10"},
+    {text:"내가 결코 너희를 버리지 아니하고 너희를 떠나지 아니하리라", ref:"히브리서 13:5"},
+    {text:"내가 세상 끝날까지 너희와 항상 함께 있으리라", ref:"마태복음 28:20"},
+    {text:"여호와는 나의 목자시니 내게 부족함이 없으리로다", ref:"시편 23:1"},
+    {text:"수고하고 무거운 짐 진 자들아 다 내게로 오라", ref:"마태복음 11:28"},
+    {text:"내 은혜가 네게 족하도다", ref:"고린도후서 12:9"},
+    {text:"내가 너를 사랑하였은즉 내가 너를 긍휼히 여기리라", ref:"예레미야 31:3"},
+    {text:"내가 사망의 음침한 골짜기로 다닐지라도 해를 두려워하지 않을 것은", ref:"시편 23:4"},
+    {text:"내가 너와 함께 있어 너를 지키며", ref:"창세기 28:15"},
+    {text:"너는 마음을 다하여 여호와를 신뢰하고 네 명철을 의지하지 말라", ref:"잠언 3:5"},
+    {text:"평안을 너희에게 끼치노니 곧 나의 평안을 너희에게 주노라", ref:"요한복음 14:27"},
+    {text:"나의 힘이 되신 여호와여 내가 주를 사랑하나이다", ref:"시편 18:1"}
+  ];
+
+  function pickBlueprintVerse(){
+    return BLUEPRINT_VERSES[Math.floor(Math.random()*BLUEPRINT_VERSES.length)];
+  }
+
   function resetBlueprintUI(){
-    ["bpAnim","bpJesus"].forEach(function(id){ $(id).hidden=true; $(id).removeAttribute("src"); });
-    $("bpAnimLoading").hidden=false; $("bpJesusLoading").hidden=false;
+    $("bpJesus").hidden=true; $("bpJesus").removeAttribute("src");
+    $("bpJesusLoading").hidden=false;
     $("bpState").className="bpstate";
     $("bpState").textContent="AI 이미지를 만드는 중입니다. 잠시만 기다려 주세요.";
     $("bpPrintBtn").disabled=true;
@@ -1250,6 +1263,8 @@
     $("bpQrUrl").textContent="";
     $("bpQrNote").className="qrnote";
     $("bpQrNote").textContent="완성되면 QR이 바로 활성화됩니다.";
+    S.blueprint.verse = pickBlueprintVerse();
+    $("bpVerse").textContent = S.blueprint.verse.text;
   }
 
   function dataUrlToImage(dataUrl){
@@ -1305,28 +1320,24 @@
     var t0 = Date.now();
     try{
       var j = await blueprintApiFetch();
-      if(!j.ok || !j.animation || !j.jesus) throw new Error(j.error || "AI 결과를 받지 못했습니다.");
-      S.blueprint.animation = await dataUrlToImage(j.animation);
+      if(!j.ok || !j.jesus) throw new Error(j.error || "AI 결과를 받지 못했습니다.");
       S.blueprint.jesus = await dataUrlToImage(j.jesus);
-      $("bpAnim").src = j.animation; $("bpAnim").hidden=false; $("bpAnimLoading").hidden=true;
       $("bpJesus").src = j.jesus; $("bpJesus").hidden=false; $("bpJesusLoading").hidden=true;
       S.blueprint.ready = true;
       S.sheet = composeBlueprintSheet(300);
       if(SHARE.on){
         qrPutImages([
           {image:S.blueprint.original.toDataURL("image/jpeg",.92), label:"원본 사진"},
-          {image:j.animation, label:"따뜻한 애니메이션"},
-          {image:j.jesus, label:"예수님과 함께"}
+          {image:j.jesus, label:"예수님과 함께한 사진"}
         ]);
       }
       $("bpState").className="bpstate ok";
-      $("bpState").textContent="완성되었습니다. QR로 세 장을 한 번에 받고, 인쇄 서버가 연결돼 있으면 바로 인쇄할 수 있습니다.";
+      $("bpState").textContent="완성되었습니다. 아래 QR로 사진을 받고, 인쇄 서버가 연결돼 있으면 바로 인쇄할 수 있습니다.";
       $("bpPrintBtn").disabled=false;
-      // 행사장에서는 AI 결과가 완성되자마자 바로 인쇄되도록 합니다.
       await blueprintAutoPrint();
-      console.log("청사진 AI 완료", Math.round((Date.now()-t0)/1000)+"초");
+      console.log("청사진 AI 완료", Math.round((Date.now()-t0)/1000)+"초", S.blueprint.verse?.ref);
     }catch(e){
-      ["bpAnimLoading","bpJesusLoading"].forEach(function(id){ $(id).hidden=true; });
+      $("bpJesusLoading").hidden=true;
       $("bpState").className="bpstate";
       $("bpState").textContent=e.message || "AI 변환에 실패했습니다.";
       $("bpPrintBtn").disabled=false;
@@ -1341,7 +1352,7 @@
       $("bpState").textContent="완성된 청사진을 프린터로 보내는 중입니다…";
       await agentPrint();
       $("bpState").className="bpstate ok";
-      $("bpState").textContent="인쇄를 보냈습니다. 휴대폰에서는 QR로 원본과 완성본을 받아가세요.";
+      $("bpState").textContent="인쇄를 보냈습니다. 휴대폰에서는 QR로 사진을 받아가세요.";
       finish("청사진 인쇄를 보냈습니다");
     }catch(e){
       $("bpPrintBtn").disabled=false;
@@ -1355,29 +1366,52 @@
     var cv=document.createElement("canvas"); cv.width=W; cv.height=H;
     var g=cv.getContext("2d"); g.imageSmoothingQuality="high";
     g.fillStyle="#F5F1E8"; g.fillRect(0,0,W,H);
-    var pad=Math.round(W*.065), header=Math.round(H*.11), gap=Math.round(H*.035);
+    var pad=Math.round(W*.065), header=Math.round(H*.11);
     g.fillStyle="#1B2436"; g.fillRect(0,0,W,header);
     g.fillStyle="#E8C27A"; g.textAlign="center"; g.textBaseline="middle";
     g.font='500 '+Math.round(header*.22)+'px "Noto Sans KR",sans-serif';
     g.fillText("CH+ BLUEPRINT", W/2, header*.37);
     g.fillStyle="rgba(255,255,255,.78)";
     g.font='300 '+Math.round(header*.12)+'px "Noto Sans KR",sans-serif';
-    g.fillText("YOUR STORY, DRAWN A LITTLE DIFFERENTLY", W/2, header*.66);
-    var boxY=header+pad*.7, boxW=W-pad*2, boxH=Math.floor((H-boxY-pad-gap)/2);
-    [
-      {cv:S.blueprint.animation, title:"따뜻한 애니메이션"},
-      {cv:S.blueprint.jesus, title:"예수님과 함께"}
-    ].forEach(function(it,idx){
-      var y=boxY+idx*(boxH+gap);
-      g.save(); roundRect(g,pad,y,boxW,boxH,Math.round(W*.02)); g.clip();
-      drawCover(g,it.cv,pad,y,boxW,boxH,Math.round(W*.02)); g.restore();
-      g.fillStyle="#1B2436"; g.textAlign="left"; g.textBaseline="alphabetic";
-      g.font='500 '+Math.round(W*.035)+'px "Noto Sans KR",sans-serif';
-      g.fillText(it.title,pad,y+boxH+Math.round(g.font.match(/\d+/)[0]*.95));
-    });
-    g.fillStyle="#6B6D73"; g.textAlign="right"; g.font='300 '+Math.round(W*.021)+'px "Jost","Noto Sans KR",sans-serif';
+    g.fillText("YOUR STORY, HELD BY JESUS", W/2, header*.66);
+
+    var boxY=header+pad*.7, boxW=W-pad*2;
+    var imgH=Math.floor(H*.58), verseTop=boxY+imgH+Math.round(H*.035);
+    roundRect(g,pad,boxY,boxW,imgH,Math.round(W*.02)); g.save(); g.clip();
+    drawCover(g,S.blueprint.jesus,pad,boxY,boxW,imgH,Math.round(W*.02)); g.restore();
+
+    var verseText = S.blueprint.verse ? S.blueprint.verse.text : "";
+    g.fillStyle="#1B2436"; g.textAlign="center"; g.textBaseline="middle";
+    var fontSize = Math.round(W*.033);
+    while(fontSize > Math.round(W*.022)){
+      g.font='400 '+fontSize+'px "Noto Sans KR",sans-serif';
+      var maxW=boxW*.88;
+      if(g.measureText(verseText).width <= maxW) break;
+      fontSize -= 2;
+    }
+    wrapCenterText(g, verseText, W/2, verseTop + Math.round(H*.09), boxW*.88, Math.round(fontSize*1.65), 2);
+
+    g.fillStyle="#6B6D73"; g.textAlign="right"; g.font='300 '+Math.round(W*.018)+'px "Jost","Noto Sans KR",sans-serif';
     g.fillText(todayText(),W-pad,H-Math.round(H*.025));
     return cv;
+  }
+
+  function wrapCenterText(g, text, cx, cy, maxWidth, lineHeight, maxLines){
+    var chars = String(text || "").split("");
+    var lines=[], line="";
+    chars.forEach(function(ch){
+      var test=line+ch;
+      if(g.measureText(test).width > maxWidth && line){ lines.push(line); line=ch; }
+      else line=test;
+    });
+    if(line) lines.push(line);
+    if(lines.length > maxLines){
+      lines = lines.slice(0,maxLines);
+      lines[maxLines-1] = lines[maxLines-1].slice(0,-1) + "…";
+    }
+    var top = cy - ((lines.length-1)*lineHeight)/2;
+    g.textAlign="center";
+    lines.forEach(function(row,i){ g.fillText(row,cx,top+i*lineHeight); });
   }
 
   $("bpPrintBtn").onclick=function(){
@@ -1388,7 +1422,7 @@
       .catch(function(){ $("bpState").textContent="인쇄에 실패했습니다. 다시 시도해 주세요."; $("bpPrintBtn").disabled=false; })
       .finally(function(){ S.busy=false; });
   };
-  $("bpAgainBtn").onclick=function(){ qrClear(); S.blueprintMode=false; S.blueprint={original:null,animation:null,jesus:null,ready:false}; show("s-setup"); };
+  $("bpAgainBtn").onclick=function(){ qrClear(); S.blueprintMode=false; S.blueprint={original:null,jesus:null,verse:null,ready:false}; show("s-setup"); };
 
   /* ══════ 인화지 그리기 ══════ */
   var canFilter = (function(){

@@ -271,20 +271,13 @@ async function openAIEdit(dataUrl, prompt) {
   return "data:image/png;base64," + out;
 }
 
-const BLUEPRINT_PROMPTS = {
-  animation: [
-    "사진 속 인물의 얼굴, 표정, 헤어스타일, 체형, 포즈, 옷차림과 인물 수를 최대한 정확하게 유지합니다.",
-    "사진을 따뜻하고 섬세한 일본 애니메이션 영화풍의 손그림 장면으로 재해석합니다. 부드러운 수채화 질감, 자연광, 따뜻한 색감, 배경의 깊이감을 사용합니다.",
-    "실존 인물을 다른 사람으로 바꾸지 말고 사진 속 사람이 누구인지 알아볼 수 있게 유지합니다. 과도한 미화나 성형처럼 보이는 얼굴 변경을 피합니다.",
-    "인물의 손과 눈, 안경, 소품은 자연스럽게 표현하고 만화적인 왜곡을 최소화합니다. 이미지 안에 글자, 로고, 워터마크를 넣지 않습니다."
-  ].join(" "),
-  jesus: [
-    "사진 속 인물의 얼굴, 표정, 헤어스타일, 체형, 포즈, 옷차림과 인물 수를 최대한 정확하게 유지합니다.",
-    "사진 속 실제 사람이 따뜻하고 평온한 표정의 예수님과 같은 공간에 자연스럽게 함께 있는 장면으로 재구성합니다.",
-    "예수님은 1세기 팔레스타인 유대인 남성의 모습으로, 소박한 긴 옷과 자연스러운 모습으로 표현합니다. 과장된 후광이나 판타지 효과는 사용하지 않습니다.",
-    "두 사람이 서로 안전하고 다정한 분위기에서 함께 서 있거나 걷는 장면처럼 자연스럽게 보이게 합니다. 사진 속 본래 인물의 정체성과 얼굴을 유지하고, 이미지 안에 글자, 로고, 워터마크를 넣지 않습니다."
-  ].join(" ")
-};
+const BLUEPRINT_PROMPT = [
+  "사진 속 인물의 얼굴, 표정, 헤어스타일, 체형, 포즈, 옷차림과 인물 수를 최대한 정확하게 유지합니다.",
+  "사진 속 실제 사람이 따뜻하고 평온한 표정의 예수님과 같은 공간에 자연스럽게 함께 있는 장면으로 재구성합니다.",
+  "예수님은 1세기 팔레스타인 유대인 남성의 모습으로, 소박한 긴 옷과 자연스러운 모습으로 표현합니다. 과장된 후광이나 판타지 효과는 사용하지 않습니다.",
+  "두 사람이 안전하고 다정한 분위기에서 함께 서 있거나 걷는 장면처럼 자연스럽게 보이게 합니다.",
+  "사진 안에 글자, 로고, 워터마크, 성경구절 텍스트를 넣지 않습니다."
+].join(" ");
 
 async function toonify(dataUrl) {
   const cfg = toonConfig();
@@ -404,13 +397,10 @@ const server = http.createServer(async (req, res) => {
       const source = String(body.image || "");
       if (!source) return json(res, 400, { ok:false, error:"원본 사진이 없습니다." });
       const t0 = Date.now();
-      const [animation, jesus] = await Promise.all([
-        openAIEdit(source, BLUEPRINT_PROMPTS.animation),
-        openAIEdit(source, BLUEPRINT_PROMPTS.jesus)
-      ]);
+      const jesus = await openAIEdit(source, BLUEPRINT_PROMPT);
       console.log(new Date().toLocaleTimeString("ko-KR"),
-        `청사진 AI 2장 완료 (${Math.round((Date.now() - t0) / 1000)}초, ${OPENAI_IMAGE_MODEL})`);
-      return json(res, 200, { ok:true, animation, jesus });
+        `청사진 AI 완료 (${Math.round((Date.now() - t0) / 1000)}초, ${OPENAI_IMAGE_MODEL})`);
+      return json(res, 200, { ok:true, jesus });
     } catch (e) {
       console.error("청사진 AI 실패:", e.message);
       return json(res, 502, { ok:false, error:String(e.message || e) });
