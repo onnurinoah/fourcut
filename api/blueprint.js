@@ -1,7 +1,3 @@
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_REQUESTS = 6;
-const seen = globalThis.__blueprintRate || (globalThis.__blueprintRate = new Map());
-
 const PROMPT = [
   "Edit this input photo into a natural, peaceful scene where the same person or people from the source photo are together with Jesus.",
   "Preserve the source person's identity, face, expression, hairstyle, body shape, pose, clothing, glasses, and number of people as faithfully as possible.",
@@ -11,25 +7,6 @@ const PROMPT = [
 
 function json(res, status, body) {
   res.status(status).json(body);
-}
-
-function clientIp(req) {
-  const x = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || "unknown";
-  return String(x).split(",")[0].trim().slice(0, 80);
-}
-
-function allowed(req) {
-  const ip = clientIp(req);
-  const now = Date.now();
-  const old = seen.get(ip) || [];
-  const fresh = old.filter(t => now - t < WINDOW_MS);
-  if (fresh.length >= MAX_REQUESTS) {
-    seen.set(ip, fresh);
-    return false;
-  }
-  fresh.push(now);
-  seen.set(ip, fresh);
-  return true;
 }
 
 function parseBody(req) {
@@ -68,15 +45,42 @@ async function editImage(dataUrl, prompt) {
   form.append("output_format", "jpeg");
   form.append("output_compression", "80");
 
-  const response = await fetch("https://api.openai.com/v1/images/edits", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}` },
-    body: form
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = payload?.error?.message || `OpenAI API ${response.status}`;
-    throw new Error(detail);
+  let response = null;
+  let payload = {};
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await fetch("https://api.openai.com/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}` },
+      body: form
+    });
+    lastStatus = response.status;
+    payload = await response.json().catch(() => ({}));
+    if (response.ok) break;
+
+    const code = payload?.error?.code || payload?.error?.type || "";
+    const transient = response.status === 429 || response.status === 500 || response.status === 502 || response.status === 503 || code === "server_is_overloaded" || code === "rate_limit_error" || code === "slow_down";
+    if (!transient || attempt === 2) break;
+    const retryAfter = Number(response.headers.get("retry-after"));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1200 * (attempt + 1);
+    await new Promise(r => setTimeout(r, Math.min(waitMs, 5000)));
+  }
+  if (!response?.ok) {
+    const code = payload?.error?.code || payload?.error?.type || "";
+    let detail = payload?.error?.message || `OpenAI API ${lastStatus || 500}`;
+    if (code === "insufficient_quota" || code === "project_spend_limit_exceeded" || code === "organization_spend_limit_exceeded" || code === "organization_usage_limit_exceeded") {
+      detail = "OpenAI 사용 한도 또는 결제 한도에 도달했습니다. OpenAI API 사용량과 결제 설정을 확인해 주세요.";
+    } else if (lastStatus === 401) {
+      detail = "OPENAI_API_KEY가 올바르지 않거나 만료되었습니다.";
+    } else if (lastStatus === 503 || code === "server_is_overloaded") {
+      detail = "OpenAI 이미지 서버가 잠시 혼잡합니다. 잠시 후 다시 시도해 주세요.";
+    } else if (lastStatus === 429 || code === "rate_limit_error" || code === "slow_down") {
+      detail = "이미지 생성 요청이 너무 빠르게 들어왔습니다. 잠시 후 다시 시도해 주세요.";
+    }
+    const err = new Error(detail);
+    err.status = lastStatus;
+    err.code = code;
+    throw err;
   }
   const b64 = payload?.data?.[0]?.b64_json;
   if (!b64) throw new Error("OpenAI가 이미지 결과를 반환하지 않았습니다.");
@@ -90,7 +94,6 @@ module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return json(res, 405, { ok: false, error: "POST만 허용됩니다." });
-  if (!allowed(req)) return json(res, 429, { ok: false, error: "잠시 후 다시 시도해 주세요." });
 
   try {
     const body = await parseBody(req);
@@ -107,6 +110,7 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     console.error("blueprint api error", err);
-    return json(res, 502, { ok: false, error: err?.message || "AI 생성에 실패했습니다." });
+    const status = Number(err?.status) || 502;
+    return json(res, status >= 400 && status < 600 ? status : 502, { ok: false, error: err?.message || "AI 생성에 실패했습니다.", code: err?.code || null });
   }
 };
