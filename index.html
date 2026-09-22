@@ -105,8 +105,7 @@
   .stage video{
     position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block
   }
-  body > video{position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0}
-  .stage video.mir{transform:scaleX(-1)}
+    .stage video.mir{transform:scaleX(-1)}
   .count{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-family:var(--sans);font-weight:200;font-size:230px;color:#fff;
@@ -273,7 +272,7 @@
   #s-shoot{grid-template-columns:1fr 330px;gap:38px}
   #tray{
     flex:1 1 auto;min-height:0;display:grid;
-    grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);gap:12px
+    grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:12px
   }
   #tray div{
     width:100%;height:100%;border-radius:8px;border:1px solid var(--line);
@@ -402,8 +401,6 @@
   }
 </style>
 
-<video id="vid" playsinline muted autoplay></video>
-
 <div id="app">
 
 <!-- ══════════ 1. 첫 화면 ══════════ -->
@@ -433,7 +430,8 @@
 <section class="screen" id="s-shoot">
   <div class="stagebox">
     <div class="stage" id="stageShoot">
-      <div class="shotno" id="shotNo">1 / 8</div>
+      <video id="vid" playsinline muted autoplay></video>
+      <div class="shotno" id="shotNo">1 / 6</div>
       <div class="count" id="count"></div>
       <div class="flash" id="flash"></div>
     </div>
@@ -441,7 +439,7 @@
   <div class="col">
     <div class="mark">
       <span class="t" style="font-size:26px">촬영</span>
-      <span class="s" id="shootSub">여덟 장을 이어서 찍습니다</span>
+      <span class="s" id="shootSub">여섯 장을 이어서 찍습니다</span>
     </div>
     <div id="tray"></div>
     <div class="btns">
@@ -824,7 +822,7 @@
     navy:  { label:"네이비", bg:"#1B2436", ink:"#DCE4F2", cut:"rgba(255,255,255,.28)" }
   };
 
-  var SHOTS = 8, KEEP = 4, DPI = 300, MAXPX = 1600;
+  var SHOTS = 6, KEEP = 4, DPI = 300, MAXPX = 1600;
 
   var S = {
     layout:"frame-4x6", filter:"none", frame:"black",
@@ -1173,7 +1171,7 @@
     show("s-shoot");
     $("shootSub").textContent = blueprintMode
       ? S.countdown + "초 뒤 한 장만 찍습니다"
-      : S.countdown + "초마다 한 장씩, 여덟 장을 이어서 찍습니다";
+      : S.countdown + "초마다 한 장씩, 여섯 장을 이어서 찍습니다";
     var p = S.stream ? Promise.resolve() : openCamera(S.deviceId);
     p.then(function(){ return sleep(700); })
      .then(sequence)
@@ -1299,10 +1297,10 @@
 
   async function runBlueprintAI(){
     if(!S.blueprint.original) throw new Error("사진이 없습니다.");
-    if(!S.agent.ok){
+    if(!S.agent.ok && location.protocol === "file:"){
       $("bpState").className="bpstate";
-      $("bpState").textContent="AI 서버를 준비하는 중입니다. 잠시만 기다려 주세요.";
-      throw new Error("AI/인쇄 서버에 연결되지 않았습니다.");
+      $("bpState").textContent="웹 주소로 접속해 주세요.";
+      throw new Error("웹 주소에서 실행해 주세요. (file:// 실행은 지원하지 않습니다.)");
     }
     var t0 = Date.now();
     try{
