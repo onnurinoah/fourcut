@@ -151,8 +151,8 @@ QR 은 페이지가 직접 그립니다. 외부 라이브러리도 필요 없습
 
 ```bash
 export OPENAI_API_KEY=여기에_키
-export OPENAI_IMAGE_MODEL=gpt-image-2.5-sunburst
-export OPENAI_IMAGE_QUALITY=medium
+export OPENAI_IMAGE_MODEL=gpt-image-2.5-flare
+export OPENAI_IMAGE_QUALITY=low
 node server/print-server.js --lan
 ```
 
@@ -160,13 +160,13 @@ Windows PowerShell은:
 
 ```powershell
 $env:OPENAI_API_KEY="여기에_키"
-$env:OPENAI_IMAGE_MODEL="gpt-image-2.5-sunburst"
+$env:OPENAI_IMAGE_MODEL="gpt-image-2.5-flare"
 $env:OPENAI_IMAGE_QUALITY="medium"
 node server/print-server.js --lan
 ```
 
 API 키는 브라우저 코드에 넣지 않고 **인쇄 서버의 환경변수에만** 둡니다. 현재 서버는 OpenAI의 이미지 편집 엔드포인트를 사용하고,
-`gpt-image-2.5-sunburst`를 기본값으로 둡니다. 웹 배포에서는 `/api/blueprint` 서버리스 함수가 같은 OpenAI 호출을 담당합니다. OpenAI 공식 문서상 Sunburst는 정밀한 이미지 편집에 적합하고,
+`gpt-image-2.5-flare`를 기본값으로 둡니다. 웹 배포에서는 `/api/blueprint` 서버리스 함수가 같은 OpenAI 호출을 담당합니다. OpenAI 공식 문서상 Sunburst는 정밀한 이미지 편집에 적합하고,
 `medium` 품질을 지원합니다.
 
 생성 완료 뒤 부스 화면에는 두 결과가 함께 보이고, 인쇄 서버가 연결돼 있으면 **자동으로 두 장면이 들어간 한 장의 청사진 인화물**을 바로 프린터로 보냅니다.

@@ -1022,7 +1022,18 @@
       if(track && track.getSettings) S.deviceId = track.getSettings().deviceId || S.deviceId;
       savePrefs();
       return vid.play().catch(function(){});
-    }).then(listCameras);
+    }).then(listCameras).catch(function(e){
+      if(e && e.name === "NotAllowedError") {
+        throw new Error("카메라 권한이 차단되어 있습니다. 브라우저 주소창의 카메라 권한을 '허용'으로 바꾼 뒤 다시 눌러 주세요.");
+      }
+      if(e && e.name === "NotFoundError") {
+        throw new Error("연결된 카메라를 찾지 못했습니다. 카메라가 연결되어 있는지 확인해 주세요.");
+      }
+      if(e && e.name === "NotReadableError") {
+        throw new Error("카메라가 다른 프로그램에서 사용 중입니다. Zoom, OBS, Photo Booth 등 카메라를 사용하는 앱을 닫아 주세요.");
+      }
+      throw e;
+    });
   }
 
   function stopCamera(){
@@ -1157,19 +1168,26 @@
     S.blueprintMode = !!blueprintMode;
     S.blueprint = { original:null, jesus:null, verse:null, ready:false };
     if(blueprintMode){
-      S.filter = "blue"; S.frame = "navy";
+      // 청사진은 원본 사진으로 촬영·AI 생성·인쇄합니다. 파란 필터는 적용하지 않습니다.
+      S.filter = "none"; S.frame = "navy";
     }else if(S.filter === "blue"){
       S.filter = "none";   // 청사진으로 한 번 찍었어도, 네컷은 원본에서 시작합니다
     }
     savePrefs(); syncSetup();
-    show("s-shoot");
     $("shootSub").textContent = blueprintMode
       ? S.countdown + "초 뒤 한 장만 찍습니다"
       : S.countdown + "초마다 한 장씩, 여섯 장을 이어서 찍습니다";
+    // 촬영 버튼을 누른 순간에만 카메라 권한을 요청합니다.
+    // Safari/Chrome의 권한 정책 때문에 페이지 로드시 자동 요청하지 않습니다.
     var p = S.stream ? Promise.resolve() : openCamera(S.deviceId);
-    p.then(function(){ return sleep(700); })
-     .then(sequence)
-     .catch(function(e){ alert(e.message || String(e)); show("s-setup"); });
+    p.then(function(){
+      show("s-shoot");
+      return sleep(700);
+    }).then(sequence)
+     .catch(function(e){
+       show("s-setup");
+       alert(e.message || String(e));
+     });
   }
   $("startBtn").onclick   = function(){ startShoot(false); };
   $("startBpBtn").onclick = function(){ startShoot(true); };
@@ -1282,7 +1300,16 @@
   }
 
   function blueprintApiFetch(){
-    var body = JSON.stringify({ image:S.blueprint.original.toDataURL("image/jpeg",.92) });
+    var apiCanvas = document.createElement("canvas");
+    var srcW = S.blueprint.original.width, srcH = S.blueprint.original.height;
+    var scale = Math.min(1, 1100 / Math.max(srcW, srcH));
+    apiCanvas.width = Math.max(1, Math.round(srcW * scale));
+    apiCanvas.height = Math.max(1, Math.round(srcH * scale));
+    var apiCtx = apiCanvas.getContext("2d");
+    apiCtx.imageSmoothingEnabled = true;
+    apiCtx.imageSmoothingQuality = "medium";
+    apiCtx.drawImage(S.blueprint.original, 0, 0, apiCanvas.width, apiCanvas.height);
+    var body = JSON.stringify({ image:apiCanvas.toDataURL("image/jpeg",.80) });
     if(S.agent.ok){
       return agentFetch("/blueprint", {
         method:"POST",
@@ -1378,7 +1405,7 @@
     var boxY=header+pad*.7, boxW=W-pad*2;
     var imgH=Math.floor(H*.58), verseTop=boxY+imgH+Math.round(H*.035);
     roundRect(g,pad,boxY,boxW,imgH,Math.round(W*.02)); g.save(); g.clip();
-    drawCover(g,S.blueprint.jesus,pad,boxY,boxW,imgH,Math.round(W*.02)); g.restore();
+    drawCover(g,S.blueprint.jesus,pad,boxY,boxW,imgH,Math.round(W*.02), "none"); g.restore();
 
     var verseText = S.blueprint.verse ? S.blueprint.verse.text : "";
     g.fillStyle="#1B2436"; g.textAlign="center"; g.textBaseline="middle";
@@ -1442,13 +1469,13 @@
     g.lineTo(x, y+r); g.quadraticCurveTo(x, y, x+r, y); g.closePath();
   }
 
-  function drawCover(g, src, x, y, w, h, r){
+  function drawCover(g, src, x, y, w, h, r, filterKey){
     g.save();
     roundRect(g, x, y, w, h, r); g.clip();
     var sw = src.width, sh = src.height;
     var k = Math.max(w/sw, h/sh);
     var dw = sw*k, dh = sh*k;
-    var F = FILTERS[S.filter];
+    var F = FILTERS[filterKey || S.filter];
     if(F.px){
       g.drawImage(stylized(src, Math.round(dw), Math.round(dh), F),
                   x + (w-dw)/2, y + (h-dh)/2, dw, dh);
@@ -2579,8 +2606,9 @@
     $("layoutHint").textContent = warn;
     $("homeMsg").textContent = warn;
   }else{
-    // 준비 화면부터 카메라를 켜 둡니다. 촬영이 끊기지 않고, 구도도 미리 잡을 수 있습니다.
-    openCamera(S.deviceId).catch(function(){ listCameras(); });
+    // 카메라는 촬영 버튼을 눌렀을 때만 권한을 요청합니다.
+    // 페이지 로드시 자동 요청하면 Safari/Chrome에서 권한 오류가 날 수 있습니다.
+    listCameras();
   }
 
   document.addEventListener("keydown", function(e){

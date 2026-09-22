@@ -61,11 +61,12 @@ async function editImage(dataUrl, prompt) {
   const bytes = Buffer.from(match[2], "base64");
 
   const form = new FormData();
-  form.append("model", process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst");
+  form.append("model", process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-flare");
   form.append("image[]", new Blob([bytes], { type: mime }), `blueprint-source.${ext}`);
   form.append("prompt", prompt);
-  form.append("quality", process.env.OPENAI_IMAGE_QUALITY || "medium");
-  form.append("output_format", "png");
+  form.append("quality", process.env.OPENAI_IMAGE_QUALITY || "low");
+  form.append("output_format", "jpeg");
+  form.append("output_compression", "80");
 
   const response = await fetch("https://api.openai.com/v1/images/edits", {
     method: "POST",
@@ -79,7 +80,7 @@ async function editImage(dataUrl, prompt) {
   }
   const b64 = payload?.data?.[0]?.b64_json;
   if (!b64) throw new Error("OpenAI가 이미지 결과를 반환하지 않았습니다.");
-  return `data:image/png;base64,${b64}`;
+  return `data:image/jpeg;base64,${b64}`;
 }
 
 module.exports = async (req, res) => {

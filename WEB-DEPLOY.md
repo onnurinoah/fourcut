@@ -7,7 +7,7 @@
 Vercel 프로젝트의 **Settings → Environment Variables**에 다음을 넣습니다.
 
 - `OPENAI_API_KEY` = 발급받은 OpenAI API 키
-- `OPENAI_IMAGE_MODEL` = `gpt-image-2.5-sunburst`
+- `OPENAI_IMAGE_MODEL` = `gpt-image-2.5-flare`
 - `OPENAI_IMAGE_QUALITY` = `medium`
 
 API 키는 `index.html`에 넣지 않습니다.
