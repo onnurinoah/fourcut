@@ -180,29 +180,37 @@
   .adminfoot{flex:0 0 auto;display:flex;gap:12px;justify-content:flex-end}
 
   /* ── QR 로 받기 ── */
-  .qrbox{
-    width:1020px;display:flex;flex-direction:column;gap:26px;
-    background:var(--bg);border:1px solid var(--line);border-radius:22px;padding:28px 32px 36px;
-    box-shadow:0 34px 90px rgba(0,0,0,.6)
+  .sheetwrap{min-height:0;display:grid;grid-template-columns:1fr 244px;gap:28px}
+  .sheetwrap .sheet{min-height:0;height:100%}
+  .qrcard{
+    align-self:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    padding:18px 18px 20px;display:flex;flex-direction:column;align-items:center;gap:13px
   }
-  .qrmain{display:grid;grid-template-columns:376px 1fr;gap:34px;align-items:center}
+  .qrhead{
+    font-family:var(--sans);font-size:11.5px;letter-spacing:.24em;color:var(--muted);
+    text-transform:uppercase
+  }
   .qrcode{
-    width:376px;height:376px;background:#fff;border-radius:16px;padding:20px;
-    display:flex;align-items:center;justify-content:center
+    width:208px;height:208px;background:#fff;border-radius:12px;padding:11px;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto
   }
   .qrcode canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
-  .qrcode .wait{color:#15140F;font-size:15px;opacity:.55}
-  .qrside{display:flex;flex-direction:column;gap:18px;min-width:0}
-  .qrstep{margin:0;font-size:21px;line-height:1.75;color:var(--ink)}
+  .qrcode .wait{color:#15140F;font-size:12.5px;opacity:.55;text-align:center;line-height:1.7;padding:0 6px}
   .qrurl{
-    font-family:var(--sans);font-size:17px;letter-spacing:.02em;color:var(--gold);
-    background:#0E0E11;border:1px solid var(--line);border-radius:11px;padding:14px 16px;
+    font-family:var(--sans);font-size:12px;color:var(--gold);text-align:center;
     word-break:break-all;line-height:1.5
   }
-  .qrnote{margin:0;font-size:14.5px;line-height:1.8;color:var(--muted)}
+  .qrnote{margin:0;font-size:12.5px;line-height:1.65;color:var(--muted);text-align:center}
   .qrnote.err{color:var(--warn)}
-  .col{display:flex;flex-direction:column;min-height:0;gap:20px}
-  .panes{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .qrcard.off .qrcode{background:rgba(255,255,255,.055)}
+  .qrcard.off .qrcode .wait{color:var(--muted);opacity:1}
+
+  /* 완료 화면의 같은 QR */
+  .qrdone{display:flex;flex-direction:column;align-items:center;gap:12px;margin:6px 0 2px}
+  .qrdone[hidden]{display:none}
+  .qrdone .qrcode{width:190px;height:190px}
+  .qrsub{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+  .qrsub span{font-family:var(--sans);font-size:12.5px;color:var(--gold)}
 
   /* ── 2. 촬영 ── */
   #s-shoot{grid-template-columns:1fr 330px;gap:38px}
@@ -239,7 +247,7 @@
   .counter b{color:var(--gold);font-weight:400;font-size:30px;font-family:var(--sans)}
 
   /* ── 4. 인쇄 ── */
-  #s-print{grid-template-columns:1fr 700px;gap:44px}
+  #s-print{grid-template-columns:1fr 660px;gap:36px}
   .sheet{min-height:0;display:flex;align-items:center;justify-content:center}
   .sheet img{
     max-width:100%;max-height:100%;width:auto;height:auto;display:block;
@@ -394,7 +402,15 @@
 
 <!-- ══════════ 4. 인쇄 ══════════ -->
 <section class="screen" id="s-print">
-  <div class="sheet"><img id="preview" alt="인화 미리보기"></div>
+  <div class="sheetwrap">
+    <div class="sheet"><img id="preview" alt="인화 미리보기"></div>
+    <div class="qrcard" id="qrCard">
+      <div class="qrhead">폰으로 받기</div>
+      <div class="qrcode" id="qrCode"><span class="wait">확인 중…</span></div>
+      <div class="qrurl" id="qrUrl"></div>
+      <p class="qrnote" id="qrNote">휴대폰 카메라로 비추세요</p>
+    </div>
+  </div>
   <div class="col">
     <div class="mark">
       <span class="t" style="font-size:26px">필터와 배경 선택</span>
@@ -415,9 +431,8 @@
       <span class="msg grow" id="printMsg" style="text-align:right"></span>
     </div>
     <div class="btns">
-      <button class="btn ghost" id="backBtn" style="flex:0 0 138px">다시 고르기</button>
-      <button class="btn ghost" id="saveBtn" style="flex:0 0 96px">저장</button>
-      <button class="btn ghost" id="qrBtn" style="flex:0 0 176px">폰으로 받기</button>
+      <button class="btn ghost" id="backBtn" style="flex:0 0 160px">다시 고르기</button>
+      <button class="btn ghost" id="saveBtn" style="flex:0 0 120px">저장</button>
       <button class="btn solid grow" id="printBtn">인쇄하기</button>
     </div>
   </div>
@@ -428,30 +443,13 @@
   <div class="done">
     <div class="big">인쇄 중</div>
     <div class="sub" id="doneTxt"></div>
-    <div class="btns" style="margin-top:10px">
-      <button class="btn" id="qrBtn2" style="min-width:260px">폰으로 받기</button>
-      <button class="btn solid" id="againBtn" style="min-width:260px">처음으로</button>
+    <div class="qrdone" id="qrDone" hidden>
+      <div class="qrcode" id="qrCode2"></div>
+      <div class="qrsub">휴대폰으로 비추면 사진을 받습니다<span id="qrUrl2"></span></div>
     </div>
+    <button class="btn solid" id="againBtn" style="min-width:300px;margin-top:4px">처음으로</button>
   </div>
 </section>
-
-<!-- ══════════ QR 로 받기 ══════════ -->
-<div class="admin" id="qrwrap" hidden>
-  <div class="qrbox">
-    <div class="adminhead">
-      <span class="t">폰으로 받기</span>
-      <button class="x" id="qrClose" aria-label="닫기">✕</button>
-    </div>
-    <div class="qrmain">
-      <div class="qrcode" id="qrCode"></div>
-      <div class="qrside">
-        <p class="qrstep">휴대폰 카메라로 이 QR 을 비추세요.<br>같은 와이파이에 있어야 합니다.</p>
-        <div class="qrurl" id="qrUrl"></div>
-        <p class="qrnote" id="qrNote">사진은 30분 뒤에 저절로 지워집니다.</p>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ══════════ 관리자 ══════════ -->
 <div class="admin" id="admin" hidden>
@@ -942,6 +940,7 @@
 
   $("startBtn").onclick = function(){
     beep(520, .05, .04); // 소리 권한을 이 손짓에서 얻어 둡니다
+    qrClear();           // 앞 사람 사진은 여기서 버립니다
     show("s-shoot");
     $("shootSub").textContent = S.countdown + "초마다 한 장씩, 여덟 장을 이어서 찍습니다";
     var p = S.stream ? Promise.resolve() : openCamera(S.deviceId);
@@ -1143,6 +1142,7 @@
       " — " + pp.w + "×" + pp.h + "mm, " + DPI + "dpi";
     S.sheet = compose(DPI);
     $("preview").src = S.sheet.toDataURL("image/png");
+    qrPut();
   }
 
   /* ── 키오스크식 FILTER / BACKGROUND 줄 ── */
@@ -1285,8 +1285,9 @@
       $("prnWrap").hidden = true;
     });
   }
-  $("recheck").onclick = checkAgent;
-  $("agentIn").onchange = checkAgent;
+  function recheck(){ return checkAgent().then(qrSetup); }
+  $("recheck").onclick = recheck;
+  $("agentIn").onchange = recheck;
 
   /* ══════ 인쇄 ══════ */
   function browserPrint(){
@@ -1620,56 +1621,84 @@
     box.innerHTML = ""; box.appendChild(cv);
   }
 
-  function qrShow(on){ $("qrwrap").hidden = !on; }
-  $("qrClose").onclick = function(){ qrShow(false); };
-  $("qrwrap").addEventListener("mousedown", function(e){
-    if(e.target === $("qrwrap")) qrShow(false);
-  });
+  /* 폰이 여는 주소는 /s 하나로 고정입니다. 그래서 QR 도 한 번만 그리면 되고,
+     부스에 종이로 붙여 둬도 그대로 맞습니다. 사진만 그때그때 갈립니다. */
+  var SHARE = { url: "", on: false };
 
-  function qrFail(why){
-    $("qrCode").innerHTML = '<span class="wait">QR 을 만들지 못했습니다</span>';
-    $("qrUrl").textContent = "";
-    var note = $("qrNote");
-    note.className = "qrnote err"; note.textContent = why;
+  function qrPaint(box, text){
+    if(!box) return;
+    try{ drawQR(box, text); }
+    catch(e){ box.innerHTML = '<span class="wait">주소가 너무 깁니다</span>'; }
+  }
+  function qrCardState(state, note){
+    var card = $("qrCard");
+    card.classList.toggle("off", state !== "ready");
+    $("qrNote").className = state === "err" ? "qrnote err" : "qrnote";
+    $("qrNote").textContent = note || "";
   }
 
-  function shareToPhone(){
-    if(!S.sheet) return;
-    qrShow(true);
-    $("qrCode").innerHTML = '<span class="wait">사진을 올리는 중…</span>';
+  /* 인쇄 서버에게 "폰이 열 주소"를 물어보고 QR 을 그려 둡니다. */
+  function qrSetup(){
+    SHARE.on = false; SHARE.url = "";
     $("qrUrl").textContent = "";
-    $("qrNote").className = "qrnote";
-    $("qrNote").textContent = "사진은 30분 뒤에 저절로 지워집니다.";
+    $("qrCode").innerHTML = '<span class="wait">확인 중…</span>';
+    $("qrDone").hidden = true;
+    qrCardState("wait", "");
 
     if(!S.agent.url){
-      return qrFail("인쇄 서버 주소가 비어 있습니다. 관리자 설정에서 넣어 주세요.");
+      $("qrCode").innerHTML = '<span class="wait">인쇄 서버가<br>필요합니다</span>';
+      return qrCardState("err", "관리자 설정에서 서버 주소를 넣어 주세요");
     }
+    return agentFetch("/health", {}, 2500).then(function(j){
+      if(!j.share || !j.shareBase){
+        $("qrCode").innerHTML = '<span class="wait">QR 이<br>꺼져 있습니다</span>';
+        return qrCardState("err", "인쇄 서버를 --lan 으로 띄우면 QR 이 나옵니다");
+      }
+      SHARE.on = true;
+      SHARE.url = j.shareBase + "/s";
+      qrPaint($("qrCode"), SHARE.url);
+      qrPaint($("qrCode2"), SHARE.url);
+      $("qrUrl").textContent = SHARE.url;
+      $("qrUrl2").textContent = SHARE.url;
+      $("qrDone").hidden = false;
+      qrCardState("ready", "휴대폰 카메라로 비추세요");
+    }).catch(function(){
+      $("qrCode").innerHTML = '<span class="wait">인쇄 서버에<br>닿지 못했습니다</span>';
+      qrCardState("err", "node server/print-server.js --lan 으로 띄웠는지 보세요");
+    });
+  }
+
+  /* 지금 만든 사진을 서버에 올려 둡니다. 앞 사람 사진은 여기서 밀려납니다.
+     필터를 이것저것 눌러 보는 동안 매번 올리지 않도록 잠깐 묶어 둡니다. */
+  var putT = null;
+  function qrPut(){
+    if(!SHARE.on) return;
+    clearTimeout(putT);
+    putT = setTimeout(qrPutNow, 500);
+  }
+  function qrPutNow(){
+    if(!SHARE.on || !S.sheet) return;
     agentFetch("/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: S.sheet.toDataURL("image/png") })
     }, 20000).then(function(j){
-      if(!j.ok) throw new Error(j.error || "서버가 거절했습니다");
-      drawQR($("qrCode"), j.url);
-      $("qrUrl").textContent = j.url;
-      var mins = Math.round((j.ttl || 1800000) / 60000);
-      $("qrNote").className = "qrnote";
-      $("qrNote").textContent = "사진은 " + mins + "분 뒤에 저절로 지워집니다. 부스 밖으로는 나가지 않습니다.";
-    }).catch(function(e){
-      var why = String(e && e.message || e);
-      if(/Failed to fetch|NetworkError|aborted|abort/i.test(why)){
-        why = "인쇄 서버에 닿지 못했습니다. 그 컴퓨터에서 node server/print-server.js --lan 으로 띄웠는지 보세요.";
-      }else if(/503/.test(why)){
-        why = "QR 로 받으려면 인쇄 서버를 --lan 옵션으로 띄워야 합니다.";
-      }
-      qrFail(why);
+      if(!j.ok) throw new Error(j.error || "");
+      qrCardState("ready", "휴대폰 카메라로 비추세요");
+    }).catch(function(){
+      qrCardState("err", "사진을 서버에 올리지 못했습니다");
     });
   }
-  $("qrBtn").onclick  = shareToPhone;
-  $("qrBtn2").onclick = shareToPhone;
+
+  /* 새로 찍기 시작하면 앞 사진을 버립니다. */
+  function qrClear(){
+    clearTimeout(putT);
+    if(!SHARE.on) return;
+    agentFetch("/share/clear", { method: "POST" }, 2500).catch(function(){});
+  }
 
   $("againBtn").onclick = function(){
-    qrShow(false);
+    qrClear();
     S.shots = []; S.picked = []; S.sheet = null; setCopies(1);
     $("printArea").innerHTML = "";
     show("s-setup");
@@ -1975,7 +2004,7 @@
   /* ══════ 시작 ══════ */
   loadPrefs();
   setCopies(1);
-  checkAgent();
+  checkAgent().then(qrSetup);
   tplInit();
   if(!secure()){
     var warn = "카메라는 https 주소이거나 localhost 에서만 켜집니다. 배포한 주소(https)로 접속하거나, 같이 넣어 둔 인쇄 서버를 띄워 http://localhost:8787 로 여세요.";
@@ -1991,7 +2020,6 @@
   document.addEventListener("keydown", function(e){
     var tag = (e.target && e.target.tagName || "").toLowerCase();
     if(tag === "input" || tag === "select" || tag === "textarea") return;
-    if(e.code === "Escape" && !$("qrwrap").hidden){ qrShow(false); return; }
     if(e.code === "Escape" && !$("admin").hidden){ adminOpen(false); return; }
     if(e.code === "Space" && $("admin").hidden
        && document.getElementById("s-setup").classList.contains("on")){

@@ -31,8 +31,7 @@ function arg(name, dflt) {
 const PORT = Number(arg("port", process.env.PORT || 8787));
 const LAN = argv.includes("--lan");
 const HOST = arg("host", LAN ? "0.0.0.0" : "127.0.0.1");
-const SHARE_TTL = 30 * 60 * 1000;   // QR 주소가 살아 있는 시간
-const SHARE_MAX = 60;               // 동시에 들고 있을 사진 수
+const SHARE_TTL = 30 * 60 * 1000;   // 사진 한 장이 남아 있는 시간
 const WEBROOT = path.resolve(arg("dir", path.join(__dirname, "..")));
 const FIXED_PRINTER = arg("printer", "");
 const NO_FIT = argv.includes("--no-fit");
@@ -67,23 +66,16 @@ const LAN_IP = lanAddress();
 const SHARE_ON = LAN && !!LAN_IP;
 function shareBase() { return "http://" + LAN_IP + ":" + PORT; }
 
-/* ── 폰으로 넘겨줄 사진을 잠깐 들고 있습니다. 디스크에는 쓰지 않습니다. ── */
-const SHARES = new Map();
-function sweepShares() {
-  const now = Date.now();
-  for (const [id, it] of SHARES) if (now - it.at > SHARE_TTL) SHARES.delete(id);
-  while (SHARES.size > SHARE_MAX) SHARES.delete(SHARES.keys().next().value);
+/* ── 폰으로 넘겨줄 "지금 사진" 한 장. 디스크에는 쓰지 않습니다. ──
+   주소를 /s 하나로 고정해 두면 QR 도 하나로 고정됩니다. 부스에 붙여 둔 QR 을
+   손님이 아무 때나 찍으면 그 순간의 사진이 나옵니다. 다음 사람이 찍으면
+   앞 사진은 그 자리에서 지워집니다. */
+let CURRENT = null;              // { buf, type, ext, at, ver }
+let VER = 0;
+function currentPhoto() {
+  if (CURRENT && Date.now() - CURRENT.at > SHARE_TTL) CURRENT = null;   // 오래되면 스스로 사라집니다
+  return CURRENT;
 }
-function newShareId() {
-  let id;
-  do { id = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6); }
-  while (SHARES.has(id));
-  return id;
-}
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
 function run(cmd, args, opts) {
   return new Promise((resolve, reject) => {
     execFile(cmd, args, Object.assign({ windowsHide: true, timeout: 120000 }, opts || {}),
@@ -221,7 +213,13 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  /* ── 사진을 잠깐 맡아 두고, 폰이 열 주소를 돌려줍니다 ── */
+  /* ── 앞 사진을 버립니다 (새로 찍기 시작할 때) ── */
+  if (url.startsWith("/share/clear") && req.method === "POST") {
+    CURRENT = null; VER++;
+    return json(res, 200, { ok: true, ver: VER });
+  }
+
+  /* ── 지금 사진을 맡깁니다. 앞 사진은 이 자리에서 버려집니다 ── */
   if (url.startsWith("/share") && req.method === "POST") {
     if (!SHARE_ON) {
       return json(res, 503, { ok: false, error: LAN
@@ -234,45 +232,42 @@ const server = http.createServer(async (req, res) => {
       const m = /^data:image\/(png|jpeg);base64,(.+)$/s.exec(String(body.image || ""));
       if (!m) return json(res, 400, { ok: false, error: "이미지를 찾지 못했습니다" });
 
-      sweepShares();
-      const id = newShareId();
-      SHARES.set(id, {
+      VER++;
+      CURRENT = {
         buf: Buffer.from(m[2], "base64"),
         type: m[1] === "png" ? "image/png" : "image/jpeg",
         ext: m[1] === "png" ? "png" : "jpg",
-        at: Date.now()
-      });
-      console.log(new Date().toLocaleTimeString("ko-KR"), `QR 공유 ${shareBase()}/s/${id}`);
-      return json(res, 200, { ok: true, id, url: shareBase() + "/s/" + id, ttl: SHARE_TTL });
+        at: Date.now(),
+        ver: VER
+      };
+      console.log(new Date().toLocaleTimeString("ko-KR"), `폰으로 받을 사진 갱신 (${VER}) — ${shareBase()}/s`);
+      return json(res, 200, { ok: true, url: shareBase() + "/s", ver: VER, ttl: SHARE_TTL });
     } catch (e) {
       return json(res, 500, { ok: false, error: String(e.message || e) });
     }
   }
 
-  /* ── 폰이 여는 주소 ── */
-  const sm = /^\/s\/([a-z0-9]{6,16})(\.(?:png|jpg))?(?:\?|$)/.exec(url);
-  if (sm) {
-    sweepShares();
-    const it = SHARES.get(sm[1]);
-    if (!it) {
-      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
-      return res.end('<!doctype html><meta charset="utf-8">'
-        + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        + '<body style="font-family:system-ui;background:#0B0B0D;color:#F2F0EC;'
-        + 'display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">'
-        + '<p>사진이 사라졌습니다.<br><small style="opacity:.6">30분이 지나면 지워집니다. 부스에서 다시 QR 을 띄워 주세요.</small></p>');
-    }
-    if (sm[2]) {
-      res.writeHead(200, {
-        "Content-Type": it.type,
-        "Content-Length": it.buf.length,
-        "Cache-Control": "no-store",
-        "Content-Disposition": 'inline; filename="fourcut-' + sm[1] + '.' + it.ext + '"'
-      });
-      return res.end(it.buf);
-    }
-    const src = "/s/" + sm[1] + "." + it.ext;
-    const left = Math.max(0, Math.round((SHARE_TTL - (Date.now() - it.at)) / 60000));
+  /* ── 폰이 여는 고정 주소 ── */
+  if (/^\/s\/ver(?:\?|$)/.test(url)) {
+    const it = currentPhoto();
+    return json(res, 200, { ver: it ? it.ver : 0, has: !!it });
+  }
+
+  if (/^\/s\/photo\.(?:png|jpg)(?:\?|$)/.test(url)) {
+    const it = currentPhoto();
+    if (!it) { cors(res); res.writeHead(404); return res.end(); }
+    cors(res);
+    res.writeHead(200, {
+      "Content-Type": it.type,
+      "Content-Length": it.buf.length,
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'inline; filename="fourcut-' + it.ver + '.' + it.ext + '"'
+    });
+    return res.end(it.buf);
+  }
+
+  if (/^\/s(?:\/)?(?:\?|$)/.test(url)) {
+    const it = currentPhoto();
     const page = '<!doctype html><html lang="ko"><meta charset="utf-8">'
       + '<meta name="viewport" content="width=device-width,initial-scale=1">'
       + '<title>인생네컷</title><style>'
@@ -284,46 +279,31 @@ const server = http.createServer(async (req, res) => {
       + 'a.dl{display:block;width:100%;max-width:440px;text-align:center;background:#E8C27A;color:#15140F;'
       + 'text-decoration:none;padding:17px;border-radius:12px;font-size:16px;letter-spacing:.06em}'
       + 'p{font-size:13px;line-height:1.8;color:rgba(242,240,236,.55);text-align:center;margin:0;max-width:440px}'
+      + '.wait{padding:60px 0;font-size:15px;color:rgba(242,240,236,.5);text-align:center;line-height:2}'
+      + '[hidden]{display:none}'
       + '</style><h1>인생네컷</h1>'
-      + '<img src="' + esc(src) + '" alt="인생네컷 사진">'
-      + '<a class="dl" href="' + esc(src) + '" download="fourcut-' + esc(sm[1]) + '.' + it.ext + '">사진 저장</a>'
-      + '<p>저장이 안 되면 사진을 길게 눌러 <b>이미지 저장</b> 을 고르세요.<br>'
-      + '이 주소는 ' + left + '분 뒤에 사라집니다.</p></html>';
+      + '<div class="wait" id="wait">아직 사진이 없습니다.<br><small>부스에서 찍고 나면 이 화면에 바로 뜹니다.</small></div>'
+      + '<img id="ph" hidden alt="인생네컷 사진">'
+      + '<a class="dl" id="dl" hidden href="/s/photo.png" download="fourcut.png">사진 저장</a>'
+      + '<p id="tip" hidden>저장이 안 되면 사진을 길게 눌러 <b>이미지 저장</b> 을 고르세요.<br>'
+      + '다음 사람이 찍으면 이 사진은 사라집니다.</p>'
+      + '<script>(function(){'
+      + 'var ver=-1;'
+      + 'function draw(v,has){'
+      + 'if(v===ver) return; ver=v;'
+      + 'var ph=document.getElementById("ph"),dl=document.getElementById("dl");'
+      + 'if(!has){ph.hidden=dl.hidden=document.getElementById("tip").hidden=true;'
+      + 'document.getElementById("wait").hidden=false;return;}'
+      + 'ph.src="/s/photo.png?v="+v; ph.hidden=false;'
+      + 'dl.href="/s/photo.png?v="+v; dl.download="fourcut-"+v+".png"; dl.hidden=false;'
+      + 'document.getElementById("tip").hidden=false;'
+      + 'document.getElementById("wait").hidden=true;}'
+      + 'draw(' + (it ? it.ver : 0) + ',' + (it ? 'true' : 'false') + ');'
+      + 'setInterval(function(){fetch("/s/ver",{cache:"no-store"}).then(function(r){return r.json();})'
+      + '.then(function(j){draw(j.ver,j.has);}).catch(function(){});},2000);'
+      + '})();</scr' + 'ipt></html>';
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
     return res.end(page);
-  }
-
-  if (url.startsWith("/printers")) {
-    return json(res, 200, { printers: await listPrinters(), defaultPrinter: await defaultPrinter() });
-  }
-
-  if (url.startsWith("/print") && req.method === "POST") {
-    let file = "";
-    try {
-      const raw = await readBody(req);
-      const body = JSON.parse(raw.toString("utf8"));
-      const m = /^data:image\/(png|jpeg);base64,(.+)$/s.exec(String(body.image || ""));
-      if (!m) return json(res, 400, { ok: false, error: "이미지를 찾지 못했습니다" });
-
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fourcut-"));
-      file = path.join(dir, (String(body.name || "fourcut").replace(/[^\w.-]/g, "") || "fourcut") + "." + (m[1] === "png" ? "png" : "jpg"));
-      fs.writeFileSync(file, Buffer.from(m[2], "base64"));
-
-      const info = await printFile(file, {
-        printer: FIXED_PRINTER || String(body.printer || "").trim(),
-        copies: body.copies,
-        media: body.media
-      });
-      console.log(new Date().toLocaleTimeString("ko-KR"),
-        `인쇄 ${info.copies}장 → ${info.printer}${info.job ? " (" + info.job + ")" : ""}`);
-
-      // 인쇄 큐가 파일을 다 읽을 시간을 주고 지웁니다.
-      setTimeout(() => { try { fs.rmSync(path.dirname(file), { recursive: true, force: true }); } catch (e) {} }, 60000);
-      return json(res, 200, Object.assign({ ok: true }, info));
-    } catch (e) {
-      console.error("인쇄 실패:", e.stderr || e.message);
-      return json(res, 500, { ok: false, error: String(e.stderr || e.message || e) });
-    }
   }
 
   if (req.method !== "GET") { res.writeHead(405); return res.end(); }
@@ -341,7 +321,7 @@ server.listen(PORT, HOST, async () => {
   console.log("  프린터   " + (printers.length ? printers.join(", ") : "(찾지 못함 — 연결과 드라이버를 확인하세요)"));
   console.log("  기본     " + (def || "(없음)"));
   if (SHARE_ON) {
-    console.log("  폰       " + shareBase() + "  (같은 와이파이에서 QR 로 사진 받기)");
+    console.log("  폰       " + shareBase() + "/s  (부스에 붙여 둘 고정 QR 주소)");
   } else if (LAN) {
     console.log("  폰       랜 주소를 찾지 못해 QR 공유는 꺼져 있습니다");
   } else {
