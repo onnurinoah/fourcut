@@ -377,6 +377,10 @@
   .msg{font-size:14px;min-height:1.4em;color:var(--muted)}
   .msg.ok{color:var(--live)}
   .msg.err{color:var(--warn)}
+  .printdest{
+    display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);
+    margin:-4px 0 2px
+  }
 
   /* ── 5. 완료 ── */
   #s-done{place-items:center}
@@ -417,25 +421,27 @@
   /* ── 인쇄용 ── */
   #printArea{display:none}
   @media print{
-    /* 화면용 규칙(height:100%, overflow:hidden)이 인쇄까지 따라오면
-       인쇄 가능 영역을 넘는 부분이 '잘려' 나갑니다. 여기서 풀어 줍니다. */
+    /* 한 장을 '한 페이지 크기의 상자' 안에 넣고, 그 안에 통째로 맞춥니다.
+       높이를 100% 로 물려받게 해야 세로가 넘쳐 다음 장으로 흘러가지 않습니다. */
     html,body{
-      height:auto!important;min-height:0!important;overflow:visible!important;
-      margin:0!important;padding:0!important;background:#fff!important
+      height:100%!important;min-height:0!important;max-height:none!important;
+      overflow:visible!important;margin:0!important;padding:0!important;
+      background:#fff!important
     }
     body>*{display:none!important}
-    #printArea{display:block!important;width:100%}
-    /* 프린터가 주는 여백이 얼마든, 인화지는 항상 그 안에 통째로 들어오고 가운데에 섭니다.
-       (잘리느니 조금 작게 — 얼굴이 날아가는 것보다 낫습니다) */
-    #printArea img{
-      display:block;margin:0 auto;
-      width:auto;height:auto;max-width:100%;max-height:100vh;
-      object-fit:contain;
+    #printArea{display:block!important;width:100%;height:100%}
+    #printArea .page{
+      display:flex;align-items:center;justify-content:center;
+      width:100%;height:100%;overflow:hidden;
       page-break-after:always;break-after:page;
-      page-break-inside:avoid;break-inside:avoid;
+      page-break-inside:avoid;break-inside:avoid
+    }
+    #printArea .page:last-child{page-break-after:auto;break-after:auto}
+    #printArea img{
+      display:block;width:auto;height:auto;max-width:100%;max-height:100%;
+      object-fit:contain;
       -webkit-print-color-adjust:exact;print-color-adjust:exact
     }
-    #printArea img:last-child{page-break-after:auto;break-after:auto}
   }
 </style>
 
@@ -524,27 +530,30 @@
   </div>
   <div class="col">
     <div class="mark">
-      <span class="t" style="font-size:26px">사진 필터와 배경 선택</span>
+      <span class="t" style="font-size:26px">사진 필터 선택</span>
       <span class="s" id="printSub"></span>
     </div>
     <div class="lane">
       <span class="lt">FILTER</span>
       <div class="sws" id="swFilter"></div>
     </div>
-    <div class="lane" style="flex:1 1 auto;min-height:0">
+    <!-- 테두리(배경)는 손님이 바꾸지 않습니다. 관리자 설정(톱니)의 '꾸미기'에서만 바꿉니다. -->
+    <div class="lane" id="laneFrame" hidden>
       <span class="lt">BACKGROUND</span>
       <div class="sws grid" id="swFrame"></div>
     </div>
+    <div style="flex:1 1 auto;min-height:0"></div>
     <div class="qty">
       <button id="minus" aria-label="한 장 줄이기">−</button>
       <span class="n" id="copies">1</span><span class="u">장</span>
       <button id="plus" aria-label="한 장 늘리기">+</button>
       <span class="msg grow" id="printMsg" style="text-align:right"></span>
     </div>
+    <div class="printdest" id="printDest"></div>
     <div class="btns">
-      <button class="btn ghost" id="backBtn" style="flex:0 0 160px">다시 찍기</button>
-      <button class="btn ghost" id="saveBtn" style="flex:0 0 120px">저장</button>
       <button class="btn solid grow" id="printBtn">바로 인쇄하기</button>
+      <button class="btn ghost" id="backBtn" hidden>다시 찍기</button>
+      <button class="btn ghost" id="saveBtn" hidden>저장</button>
     </div>
   </div>
 </section>
@@ -1693,6 +1702,19 @@
   }
 
   /* 인화지를 다시 그려 미리보기에 겁니다. */
+  /* 이 버튼을 누르면 어디로 나가는지 — 창이 뜨는지 아닌지를 미리 알려 줍니다. */
+  function showPrintDest(){
+    var el = $("printDest"); if(!el) return;
+    var pp = paper();
+    var size = pp.w + "×" + pp.h + "mm";
+    if(S.agent.ok){
+      el.innerHTML = '<span class="dot ok"></span><span>인쇄창 없이 바로 나갑니다 — ' +
+        (S.agent.printer || "기본 프린터") + " · " + size + "</span>";
+    }else{
+      el.innerHTML = '<span class="dot no"></span><span>인쇄창이 뜹니다 — 설정(톱니)에서 인쇄 서버를 연결하면 창 없이 바로 나갑니다</span>';
+    }
+  }
+
   function renderSheet(){
     var Lo = L(), pp = paper();
     $("printSub").textContent =
@@ -1784,6 +1806,7 @@
     return toonRun().then(fontsReady).then(function(){
       renderSheet();
       buildLanes();
+      showPrintDest();
       show("s-print");
     });
   }
@@ -1923,16 +1946,16 @@
     area.innerHTML = "";
     var st = document.getElementById("pageSize") || document.createElement("style");
     st.id = "pageSize";
-    st.textContent =
-      "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}" +
-      "#printArea img{width:" + Lo.paper.w + "mm;height:" + Lo.paper.h + "mm;" +
-      "max-width:100%;max-height:100vh;object-fit:contain;margin:0 auto}";
+    st.textContent = "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}";
     document.head.appendChild(st);
     var url = S.sheet.toDataURL("image/png");
     for(var i=0;i<S.copies;i++){
+      var pg = document.createElement("div");
+      pg.className = "page";
       var im = new Image();
       im.src = url; im.alt = "";
-      area.appendChild(im);
+      pg.appendChild(im);
+      area.appendChild(pg);
     }
     // 이미지가 올라온 뒤에 인쇄창을 띄웁니다
     return new Promise(function(res){
