@@ -25,6 +25,8 @@
     --k:1;                 /* 화면에 맞춘 배율 */
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  /* hidden 은 display 를 가진 규칙(.lane 등)에 밀리지 않아야 합니다 */
+  [hidden]{display:none!important}
   html,body{height:100%;margin:0;overflow:hidden;background:#000}
   body{color:var(--ink);font-family:var(--kr);font-weight:300;line-height:1.6;font-size:16px}
   button,input,select{font-family:inherit;font-weight:inherit;color:inherit}
@@ -378,9 +380,11 @@
   .msg.ok{color:var(--live)}
   .msg.err{color:var(--warn)}
   .printdest{
-    display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);
-    margin:-4px 0 2px
+    display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--muted);
+    margin:-4px 0 2px;line-height:1.5
   }
+  .printdest .dot{margin-top:6px}
+  .printdest b{color:var(--ink);font-weight:400}
 
   /* ── 5. 완료 ── */
   #s-done{place-items:center}
@@ -421,27 +425,31 @@
   /* ── 인쇄용 ── */
   #printArea{display:none}
   @media print{
-    /* 한 장을 '한 페이지 크기의 상자' 안에 넣고, 그 안에 통째로 맞춥니다.
-       높이를 100% 로 물려받게 해야 세로가 넘쳐 다음 장으로 흘러가지 않습니다. */
     html,body{
-      height:100%!important;min-height:0!important;max-height:none!important;
+      height:auto!important;min-height:0!important;max-height:none!important;
       overflow:visible!important;margin:0!important;padding:0!important;
       background:#fff!important
     }
     body>*{display:none!important}
-    #printArea{display:block!important;width:100%;height:100%}
-    #printArea .page{
-      display:flex;align-items:center;justify-content:center;
-      width:100%;height:100%;overflow:hidden;
-      page-break-after:always;break-after:page;
-      page-break-inside:avoid;break-inside:avoid
+    #printArea{display:block!important}
+    /* 고정 위치 상자는 '종이 한 쪽' 에 맞춰집니다 — 화면 높이나 vh 에 기대지 않습니다.
+       머리글·바닥글이 켜져 있어 인쇄 영역이 줄어도 그 줄어든 영역에 맞춰 들어갑니다. */
+    #printArea .sheetfix{
+      position:fixed;left:0;top:0;right:0;bottom:0;
+      display:flex;align-items:center;justify-content:center;overflow:hidden
     }
-    #printArea .page:last-child{page-break-after:auto;break-after:auto}
-    #printArea img{
+    #printArea .sheetfix img{
       display:block;width:auto;height:auto;max-width:100%;max-height:100%;
       object-fit:contain;
       -webkit-print-color-adjust:exact;print-color-adjust:exact
     }
+    /* 매수만큼 장을 잡아 둡니다 (고정 상자가 모든 장에 찍힙니다).
+       완전히 빈 칸은 엔진이 버리므로 보이지 않는 글자 하나를 넣습니다. */
+    #printArea .pg{
+      height:2px;overflow:hidden;color:#fff;font-size:1px;line-height:1px;
+      break-after:page;page-break-after:always
+    }
+    #printArea .pg:last-child{break-after:auto;page-break-after:auto}
   }
 </style>
 
@@ -530,10 +538,11 @@
   </div>
   <div class="col">
     <div class="mark">
-      <span class="t" style="font-size:26px">사진 필터 선택</span>
+      <span class="t" style="font-size:26px">인쇄</span>
       <span class="s" id="printSub"></span>
     </div>
-    <div class="lane">
+    <!-- 사진 톤도 손님이 고르지 않습니다. 관리자 설정(톱니)의 '꾸미기 → 사진 톤' 에서만. -->
+    <div class="lane" id="laneFilter" hidden>
       <span class="lt">FILTER</span>
       <div class="sws" id="swFilter"></div>
     </div>
@@ -1711,7 +1720,7 @@
       el.innerHTML = '<span class="dot ok"></span><span>인쇄창 없이 바로 나갑니다 — ' +
         (S.agent.printer || "기본 프린터") + " · " + size + "</span>";
     }else{
-      el.innerHTML = '<span class="dot no"></span><span>인쇄창이 뜹니다 — 설정(톱니)에서 인쇄 서버를 연결하면 창 없이 바로 나갑니다</span>';
+      el.innerHTML = '<span class="dot no"></span><span>인쇄창이 뜹니다 — 창이 뜨면 <b>여백: 없음</b>, <b>머리글·바닥글 끄기</b> 로 두셔야 꽉 찹니다</span>';
     }
   }
 
@@ -1949,12 +1958,16 @@
     st.textContent = "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}";
     document.head.appendChild(st);
     var url = S.sheet.toDataURL("image/png");
+    var fix = document.createElement("div");
+    fix.className = "sheetfix";
+    var im = new Image();
+    im.src = url; im.alt = "";
+    fix.appendChild(im);
+    area.appendChild(fix);
     for(var i=0;i<S.copies;i++){
       var pg = document.createElement("div");
-      pg.className = "page";
-      var im = new Image();
-      im.src = url; im.alt = "";
-      pg.appendChild(im);
+      pg.className = "pg";
+      pg.textContent = "\u00a0";
       area.appendChild(pg);
     }
     // 이미지가 올라온 뒤에 인쇄창을 띄웁니다
