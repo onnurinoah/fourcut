@@ -106,12 +106,35 @@
     position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block
   }
     .stage video.mir{transform:scaleX(-1)}
+  /* 카메라를 쓰지 않는 화면에서는 video 를 body 로 잠시 옮겨 둡니다.
+     그때 화면 전체를 덮어 클릭을 먹어 버리지 않도록 구석으로 접어 둡니다. */
+  body > video{
+    position:fixed;left:-9999px;top:0;width:2px;height:2px;
+    opacity:0;pointer-events:none
+  }
   .count{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-family:var(--sans);font-weight:200;font-size:230px;color:#fff;
     text-shadow:0 2px 50px rgba(0,0,0,.55);pointer-events:none;opacity:0;transition:opacity .12s
   }
   .count.on{opacity:1}
+  /* 첫 컷 전에 뜨는 '시작합니다' — 카메라 위를 덮어 눈이 한 곳만 보게 합니다 */
+  .lead{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px;
+    background:rgba(8,9,12,.72);backdrop-filter:blur(3px);
+    opacity:0;pointer-events:none;transition:opacity .25s
+  }
+  .lead.on{opacity:1}
+  .lead .w{
+    font-family:var(--kr);font-weight:300;font-size:44px;letter-spacing:.3em;
+    color:var(--gold);padding-left:.3em
+  }
+  .lead .n{
+    font-family:var(--sans);font-weight:200;font-size:210px;line-height:1.05;color:#fff;
+    text-shadow:0 2px 50px rgba(0,0,0,.55);font-variant-numeric:tabular-nums
+  }
+  .lead .s{font-size:15px;color:rgba(242,240,236,.62);letter-spacing:.04em;margin-top:8px}
   .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
   .flash.go{animation:fl .42s ease-out}
   @keyframes fl{0%{opacity:.92}100%{opacity:0}}
@@ -272,7 +295,7 @@
   #s-shoot{grid-template-columns:1fr 330px;gap:38px}
   #tray{
     flex:1 1 auto;min-height:0;display:grid;
-    grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:12px
+    grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,1fr);gap:12px
   }
   #tray div{
     width:100%;height:100%;border-radius:8px;border:1px solid var(--line);
@@ -394,9 +417,24 @@
   /* ── 인쇄용 ── */
   #printArea{display:none}
   @media print{
+    /* 화면용 규칙(height:100%, overflow:hidden)이 인쇄까지 따라오면
+       인쇄 가능 영역을 넘는 부분이 '잘려' 나갑니다. 여기서 풀어 줍니다. */
+    html,body{
+      height:auto!important;min-height:0!important;overflow:visible!important;
+      margin:0!important;padding:0!important;background:#fff!important
+    }
     body>*{display:none!important}
-    #printArea{display:block!important}
-    #printArea img{display:block;page-break-after:always;break-after:page}
+    #printArea{display:block!important;width:100%}
+    /* 프린터가 주는 여백이 얼마든, 인화지는 항상 그 안에 통째로 들어오고 가운데에 섭니다.
+       (잘리느니 조금 작게 — 얼굴이 날아가는 것보다 낫습니다) */
+    #printArea img{
+      display:block;margin:0 auto;
+      width:auto;height:auto;max-width:100%;max-height:100vh;
+      object-fit:contain;
+      page-break-after:always;break-after:page;
+      page-break-inside:avoid;break-inside:avoid;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact
+    }
     #printArea img:last-child{page-break-after:auto;break-after:auto}
   }
 </style>
@@ -431,15 +469,20 @@
   <div class="stagebox">
     <div class="stage" id="stageShoot">
       <video id="vid" playsinline muted autoplay></video>
-      <div class="shotno" id="shotNo">1 / 6</div>
+      <div class="shotno" id="shotNo">1 / 4</div>
       <div class="count" id="count"></div>
+      <div class="lead" id="lead">
+        <span class="w">시작합니다</span>
+        <span class="n" id="leadN">5</span>
+        <span class="s" id="leadSub">네 장을 이어서 찍습니다</span>
+      </div>
       <div class="flash" id="flash"></div>
     </div>
   </div>
   <div class="col">
     <div class="mark">
       <span class="t" style="font-size:26px">촬영</span>
-      <span class="s" id="shootSub">여섯 장을 이어서 찍습니다</span>
+      <span class="s" id="shootSub">네 장을 이어서 찍습니다</span>
     </div>
     <div id="tray"></div>
     <div class="btns">
@@ -499,7 +542,7 @@
       <span class="msg grow" id="printMsg" style="text-align:right"></span>
     </div>
     <div class="btns">
-      <button class="btn ghost" id="backBtn" style="flex:0 0 160px">다시 고르기</button>
+      <button class="btn ghost" id="backBtn" style="flex:0 0 160px">다시 찍기</button>
       <button class="btn ghost" id="saveBtn" style="flex:0 0 120px">저장</button>
       <button class="btn solid grow" id="printBtn">바로 인쇄하기</button>
     </div>
@@ -817,7 +860,8 @@
     navy:  { label:"네이비", bg:"#1B2436", ink:"#DCE4F2", cut:"rgba(255,255,255,.28)" }
   };
 
-  var SHOTS = 6, KEEP = 4, DPI = 300, MAXPX = 1600;
+  var SHOTS = 4, KEEP = 4, DPI = 300, MAXPX = 1600;   // 네 장 찍어 네 장 다 씁니다
+  var LEADIN = 5;                                      // 첫 컷 전 '시작합니다' 카운트(초)
 
   var S = {
     layout:"frame-4x6", filter:"none", frame:"black",
@@ -1098,10 +1142,12 @@
     return c;
   }
 
-  function drawTray(){
+  function drawTray(total){
     var tray = $("tray");
+    total = total || SHOTS;
+    tray.style.gridTemplateRows = "repeat(" + Math.ceil(total/2) + ",1fr)";
     tray.innerHTML = "";
-    for(var i=0;i<SHOTS;i++){
+    for(var i=0;i<total;i++){
       var d = document.createElement("div");
       if(S.shots[i]){
         d.className = "full";
@@ -1111,11 +1157,31 @@
     }
   }
 
+  /* 첫 컷 전에 "시작합니다" 를 띄우고 다섯을 셉니다. 자세를 잡을 시간입니다. */
+  function leadIn(total){
+    var lead = $("lead"), num = $("leadN");
+    $("leadSub").textContent = total === 1 ? "한 장만 찍습니다" : "네 장을 이어서 찍습니다";
+    num.textContent = LEADIN;
+    lead.classList.add("on");
+    var chain = Promise.resolve();
+    for(var t=LEADIN; t>=1; t--){
+      (function(t){
+        chain = chain.then(function(){
+          if(S.abort) return;
+          num.textContent = t;
+          beep(t <= 2 ? 700 : 500, .09, .05);
+          return sleep(1000);
+        });
+      })(t);
+    }
+    return chain.then(function(){ lead.classList.remove("on"); return sleep(260); });
+  }
+
   function sequence(){
     S.abort = false; S.shots = []; S.picked = [];
-    drawTray();
     var cnt = $("count"), fl = $("flash");
     var totalShots = S.blueprintMode ? 1 : SHOTS;
+    drawTray(totalShots);
 
     function shoot(n){
       if(S.abort) return Promise.resolve();
@@ -1139,7 +1205,7 @@
         fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
         beep(1180, .07, .12);
         S.shots.push({ canvas:c, url:c.toDataURL("image/jpeg", .88) });
-        drawTray();
+        drawTray(totalShots);
         return sleep(900);
       }).then(function(){
         if(S.abort || n+1 >= totalShots) return;
@@ -1147,16 +1213,20 @@
       });
     }
 
-    return shoot(0).then(function(){
-      if(S.abort){ show("s-setup"); return; }
+    return leadIn(totalShots).then(function(){
+      return S.abort ? null : shoot(0);
+    }).then(function(){
+      if(S.abort){ $("lead").classList.remove("on"); show("s-setup"); return; }
       if(S.blueprintMode){
         S.blueprint.original = S.shots[0] ? S.shots[0].canvas : null;
         show("s-blueprint");
         resetBlueprintUI();
         return runBlueprintAI();
       }
+      // 네 장을 그대로 씁니다 — 고르는 단계 없이 바로 인쇄 화면으로.
+      S.picked = [0, 1, 2, 3];
       buildPick();
-      show("s-pick");
+      return goPrint();
     }).catch(function(e){
       alert(e.message || String(e));
       show("s-setup");
@@ -1176,8 +1246,8 @@
     }
     savePrefs(); syncSetup();
     $("shootSub").textContent = blueprintMode
-      ? S.countdown + "초 뒤 한 장만 찍습니다"
-      : S.countdown + "초마다 한 장씩, 여섯 장을 이어서 찍습니다";
+      ? "다섯을 센 뒤 한 장만 찍습니다"
+      : "다섯을 센 뒤, " + S.countdown + "초마다 한 장씩 네 장을 찍습니다";
     // 촬영 버튼을 누른 순간에만 카메라 권한을 요청합니다.
     // Safari/Chrome의 권한 정책 때문에 페이지 로드시 자동 요청하지 않습니다.
     var p = S.stream ? Promise.resolve() : openCamera(S.deviceId);
@@ -1709,14 +1779,15 @@
     });
   }
 
-  $("toPrintBtn").onclick = function(){
+  function goPrint(){
     $("printMsg").textContent = ""; $("printMsg").className = "msg";
-    toonRun().then(fontsReady).then(function(){
+    return toonRun().then(fontsReady).then(function(){
       renderSheet();
       buildLanes();
       show("s-print");
     });
-  };
+  }
+  $("toPrintBtn").onclick = function(){ goPrint(); };
 
   /* ══════ 그림으로 바꾸기 ══════ */
   /* 청사진으로 찍었고 서버에 AI 설정이 있으면, 고른 넉 장을 한꺼번에 보내
@@ -1785,7 +1856,7 @@
     TOON.skip = true;
     $("toonwrap").hidden = true;
   };
-  $("backBtn").onclick = function(){ show("s-pick"); };
+  $("backBtn").onclick = function(){ startShoot(false); };
 
   /* ══════ 매수 ══════ */
   function setCopies(n){
@@ -1854,7 +1925,8 @@
     st.id = "pageSize";
     st.textContent =
       "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}" +
-      "#printArea img{width:" + Lo.paper.w + "mm;height:" + Lo.paper.h + "mm}";
+      "#printArea img{width:" + Lo.paper.w + "mm;height:" + Lo.paper.h + "mm;" +
+      "max-width:100%;max-height:100vh;object-fit:contain;margin:0 auto}";
     document.head.appendChild(st);
     var url = S.sheet.toDataURL("image/png");
     for(var i=0;i<S.copies;i++){
