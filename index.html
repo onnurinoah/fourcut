@@ -731,7 +731,7 @@
         <label class="fld" style="margin-top:14px" for="capIn">아래쪽 문구</label>
         <div class="row">
           <input type="text" id="capIn" class="grow" maxlength="18" placeholder="비워 두면 WELCOME HOME 마크" value="">
-          <button class="chip" id="dateBtn" aria-pressed="true" style="flex:0 0 auto;min-width:112px">날짜 넣기</button>
+          <button class="chip" id="dateBtn" aria-pressed="false" style="flex:0 0 auto;min-width:112px">날짜 넣기</button>
         </div>
       </div>
     </div>
@@ -899,7 +899,7 @@
   };
 
   var FRAMES = {
-    home:  { label:"웰컴홈", bg:"#7088A0", ink:"#FAE9A6", cut:"rgba(255,255,255,.3)" },
+    home:  { label:"웰컴홈", bg:"#7188A0", ink:"#FAE9A6", cut:"rgba(255,255,255,.3)" },
     white: { label:"화이트", bg:"#FFFFFF", ink:"#2B2B2B", cut:"rgba(0,0,0,.28)" },
     black: { label:"블랙",   bg:"#121212", ink:"#F0EDE7", cut:"rgba(255,255,255,.3)" },
     cream: { label:"크림",   bg:"#F4ECE0", ink:"#6B5A46", cut:"rgba(0,0,0,.24)" },
@@ -911,7 +911,7 @@
 
   var S = {
     layout:"frame-4x6", filter:"none", frame:"home",
-    caption:"", withDate:true, mirror:true, countdown:3, leadin:5,
+    caption:"", withDate:false, mirror:true, countdown:3, leadin:5,
     copies:1, deviceId:null, stream:null,
     shots:[], picked:[], sheet:null,
     blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
@@ -1063,9 +1063,12 @@
     });
   }
 
+  var PREFS_V = 3;   // 모양(규격·테두리·문구)이 바뀌면 올립니다 → 기기에 남은 옛 설정을 한 번 비웁니다
+
   function savePrefs(){
     try{
       localStorage.setItem("fourcut", JSON.stringify({
+        v:PREFS_V,
         layout:S.layout, filter:S.filter, frame:S.frame, caption:S.caption,
         withDate:S.withDate, mirror:S.mirror, countdown:S.countdown,
         agent:S.agent.url, printer:S.agent.printer, deviceId:S.deviceId,
@@ -1080,11 +1083,16 @@
     if(q.get("agent")) p.agent = q.get("agent");
     if(q.get("layout") && PAPERS[q.get("layout")]) p.layout = q.get("layout");
 
-    if(p.layout && PAPERS[p.layout]) S.layout = p.layout;
-    if(p.filter && FILTERS[p.filter]) S.filter = p.filter;
-    if(p.frame && FRAMES[p.frame]) S.frame = p.frame;
-    if(typeof p.caption === "string") S.caption = p.caption;
-    if(typeof p.withDate === "boolean") S.withDate = p.withDate;
+    /* 모양 설정은 판이 같을 때만 이어받습니다. 옛 기기에 남아 있던
+       '인생네컷' 문구나 검정 테두리가 새 디자인을 덮어쓰지 않도록. */
+    var sameDesign = (p.v === PREFS_V);
+    if(sameDesign){
+      if(p.layout && PAPERS[p.layout]) S.layout = p.layout;
+      if(p.filter && FILTERS[p.filter]) S.filter = p.filter;
+      if(p.frame && FRAMES[p.frame]) S.frame = p.frame;
+      if(typeof p.caption === "string") S.caption = p.caption;
+      if(typeof p.withDate === "boolean") S.withDate = p.withDate;
+    }
     if(typeof p.mirror === "boolean") S.mirror = p.mirror;
     if(CDS.indexOf(p.countdown) >= 0) S.countdown = p.countdown;
     if(LEADS.indexOf(p.leadin) >= 0) S.leadin = p.leadin;
