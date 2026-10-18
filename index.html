@@ -903,10 +903,10 @@
 
   var FILTERS = {
     none:   { label:"원본", css:"none" },
-    mono:   { label:"흑백", css:"grayscale(1) contrast(1.06)" },
-    film:   { label:"필름", css:"sepia(.26) saturate(1.12) contrast(1.05)" },
-    bright: { label:"화사", css:"brightness(1.08) saturate(1.14) contrast(.98)" },
-    crisp:  { label:"선명", css:"contrast(1.14) saturate(1.06)" },
+    mono:   { label:"흑백", css:"grayscale(1) contrast(1.06)",              adj:{ gray:1, contrast:1.06 } },
+    film:   { label:"필름", css:"sepia(.26) saturate(1.12) contrast(1.05)",  adj:{ sepia:.26, sat:1.12, contrast:1.05 } },
+    bright: { label:"화사", css:"brightness(1.08) saturate(1.14) contrast(.98)", adj:{ bright:1.08, sat:1.14, contrast:.98 } },
+    crisp:  { label:"선명", css:"contrast(1.14) saturate(1.06)",             adj:{ contrast:1.14, sat:1.06 } },
     blue:   { label:"청사진", css:"none", px:blueprint }
   };
 
@@ -1669,15 +1669,65 @@
     g.lineTo(x, y+r); g.quadraticCurveTo(x, y, x+r, y); g.closePath();
   }
 
+  /* 사파리 구버전 등 ctx.filter 를 지원하지 않는 기기에서는 픽셀로 직접 계산합니다.
+     CSS 필터와 같은 순서(흑백 → 세피아 → 채도 → 밝기 → 대비)로 적용합니다. */
+  function applyAdj(d, a){
+    var gy = a.gray || 0, sp = a.sepia || 0;
+    var st = (a.sat == null ? 1 : a.sat);
+    var br = (a.bright == null ? 1 : a.bright);
+    var ct = (a.contrast == null ? 1 : a.contrast);
+    for(var i = 0; i < d.length; i += 4){
+      var r = d[i], g2 = d[i+1], b = d[i+2], l;
+      if(gy > 0){
+        l = 0.2126*r + 0.7152*g2 + 0.0722*b;
+        r += (l-r)*gy; g2 += (l-g2)*gy; b += (l-b)*gy;
+      }
+      if(sp > 0){
+        var sr = 0.393*r + 0.769*g2 + 0.189*b;
+        var sg = 0.349*r + 0.686*g2 + 0.168*b;
+        var sb = 0.272*r + 0.534*g2 + 0.131*b;
+        r += (sr-r)*sp; g2 += (sg-g2)*sp; b += (sb-b)*sp;
+      }
+      if(st !== 1){
+        l = 0.2126*r + 0.7152*g2 + 0.0722*b;
+        r = l + (r-l)*st; g2 = l + (g2-l)*st; b = l + (b-l)*st;
+      }
+      if(br !== 1){ r *= br; g2 *= br; b *= br; }
+      if(ct !== 1){ r = (r-128)*ct + 128; g2 = (g2-128)*ct + 128; b = (b-128)*ct + 128; }
+      d[i]   = r  < 0 ? 0 : (r  > 255 ? 255 : r);
+      d[i+1] = g2 < 0 ? 0 : (g2 > 255 ? 255 : g2);
+      d[i+2] = b  < 0 ? 0 : (b  > 255 ? 255 : b);
+    }
+  }
+
+  function adjusted(src, w, h, key, F){
+    var ck = key + ":" + w + "x" + h;
+    if(src.__adj && src.__adj.key === ck) return src.__adj.cv;
+    var cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    var g = cv.getContext("2d", { willReadFrequently:true });
+    g.imageSmoothingQuality = "high";
+    g.drawImage(src, 0, 0, w, h);
+    var im = g.getImageData(0, 0, w, h);
+    applyAdj(im.data, F.adj);
+    g.putImageData(im, 0, 0);
+    src.__adj = { key:ck, cv:cv };
+    return cv;
+  }
+
   function drawCover(g, src, x, y, w, h, r, filterKey){
     g.save();
     roundRect(g, x, y, w, h, r); g.clip();
     var sw = src.width, sh = src.height;
     var k = Math.max(w/sw, h/sh);
     var dw = sw*k, dh = sh*k;
-    var F = FILTERS[filterKey || S.filter];
+    var fk = filterKey || S.filter;
+    var F = FILTERS[fk];
     if(F.px){
       g.drawImage(stylized(src, Math.round(dw), Math.round(dh), F),
+                  x + (w-dw)/2, y + (h-dh)/2, dw, dh);
+    }else if(!canFilter && F.adj){
+      g.drawImage(adjusted(src, Math.round(dw), Math.round(dh), fk, F),
                   x + (w-dw)/2, y + (h-dh)/2, dw, dh);
     }else{
       if(canFilter) g.filter = F.css;
