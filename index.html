@@ -5,7 +5,7 @@
 <title>인생네컷</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&family=Noto+Sans+KR:wght@200;300;400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Italianno&family=Jost:wght@200;300;400;500&family=Noto+Sans+KR:wght@200;300;400;500&display=swap">
 <meta name="theme-color" content="#0B0B0D">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230B0B0D'/%3E%3Cg fill='%23E8C27A'%3E%3Crect x='6' y='6' width='9' height='9' rx='1.5'/%3E%3Crect x='17' y='6' width='9' height='9' rx='1.5'/%3E%3Crect x='6' y='17' width='9' height='9' rx='1.5'/%3E%3Crect x='17' y='17' width='9' height='9' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
 <style>
@@ -166,13 +166,20 @@
     display:flex;flex-direction:column;align-items:center;gap:10px
   }
   .btn.big{
-    min-width:470px;min-height:116px;border-radius:99px;font-size:30px;
-    letter-spacing:.26em;padding-left:calc(26px + .26em);
-    box-shadow:0 22px 60px rgba(10,22,42,.44)
+    min-width:520px;min-height:146px;border-radius:99px;padding:0 34px;
+    letter-spacing:0;box-shadow:0 22px 60px rgba(10,22,42,.44);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px
+  }
+  .btn.big .l1{
+    display:block;font-size:34px;letter-spacing:.26em;padding-left:.26em;line-height:1.1
+  }
+  .btn.big .l2{
+    display:block;font-size:17px;font-weight:300;letter-spacing:.04em;
+    line-height:1.3;opacity:.86
   }
   /* 청사진 쪽은 첫 화면 그림에 녹도록 테두리만 */
   .btn.big.line{
-    min-height:104px;font-size:26px;background:rgba(12,24,44,.26);
+    min-height:146px;background:rgba(12,24,44,.26);
     border-color:rgba(255,255,255,.62);color:#fff;
     box-shadow:0 14px 40px rgba(10,22,42,.28);backdrop-filter:blur(4px)
   }
@@ -288,14 +295,10 @@
 
   /* 청사진 촬영 버튼을 실제 주 CTA처럼 보이게 */
   .homechoices{display:flex;gap:14px;align-items:stretch}
-  .homechoices .big{min-width:430px}
+  .homechoices .big{min-width:470px}
   .homebadge{display:none;align-items:center;gap:7px;font-size:12px;letter-spacing:.05em;color:rgba(255,255,255,.82);margin-bottom:7px}
   .homebadge i{width:7px;height:7px;border-radius:50%;background:var(--gold);display:block;box-shadow:0 0 12px rgba(232,194,122,.55)}
   .homehelp{margin:0;color:rgba(255,255,255,.72);font-size:13.5px}
-  .homebp{
-    margin:2px 0 0;color:var(--gold);font-size:18px;letter-spacing:.03em;
-    text-shadow:0 2px 14px rgba(0,0,0,.55)
-  }
 
   /* ── 2. 촬영 ── */
   #s-shoot{grid-template-columns:1fr 330px;gap:38px}
@@ -469,10 +472,15 @@
     <div class="homeact">
       <div class="homebadge"><i></i> CH+ BLUEPRINT PHOTO</div>
       <div class="homechoices">
-        <button class="btn solid big" id="startBtn">네컷 촬영하기</button>
-        <button class="btn big line" id="startBpBtn">청사진 사진 찍기</button>
+        <button class="btn solid big" id="startBtn">
+          <span class="l1">네컷 촬영하기</span>
+          <span class="l2">네 장을 찍어 한 장으로 인쇄합니다</span>
+        </button>
+        <button class="btn big line" id="startBpBtn">
+          <span class="l1">청사진 사진 찍기</span>
+          <span class="l2">사진을 촬영하면 예수님이 등장합니다</span>
+        </button>
       </div>
-      <p class="homebp">사진을 촬영하면 예수님이 등장합니다.</p>
       <p class="homehelp" id="homeHelp">청사진은 한 장만 찍으면 AI가 두 가지 장면으로 만들어 드립니다.</p>
       <p class="homemsg" id="homeMsg"></p>
     </div>
@@ -657,9 +665,11 @@
         <select id="camSel"><option>카메라를 허용하면 목록이 뜹니다</option></select>
         <div class="row" style="margin-top:12px">
           <button class="chip" id="mirBtn" aria-pressed="true">좌우 반전<small>거울처럼</small></button>
-          <button class="chip" id="cd3" aria-pressed="true" data-cd="3">카운트 3초</button>
-          <button class="chip" id="cd5" aria-pressed="false" data-cd="5">카운트 5초</button>
         </div>
+        <label class="fld" style="margin-top:14px">시작 카운트 (찍기를 누른 뒤)</label>
+        <div class="row" id="leadrow"></div>
+        <label class="fld" style="margin-top:14px">컷 간격 (한 장과 다음 장 사이)</label>
+        <div class="row" id="cdrow"></div>
       </div>
       <div class="card">
         <h3>프린터</h3>
@@ -720,7 +730,7 @@
         <div class="row" id="frames"></div>
         <label class="fld" style="margin-top:14px" for="capIn">아래쪽 문구</label>
         <div class="row">
-          <input type="text" id="capIn" class="grow" maxlength="18" placeholder="인생네컷" value="인생네컷">
+          <input type="text" id="capIn" class="grow" maxlength="18" placeholder="비워 두면 WELCOME HOME 마크" value="">
           <button class="chip" id="dateBtn" aria-pressed="true" style="flex:0 0 auto;min-width:112px">날짜 넣기</button>
         </div>
       </div>
@@ -756,9 +766,9 @@
 
   var PAPERS = {
     "frame-4x6": {
-      label:"4×6인치", sub:"세로 줄임 · 권장",
-      hint:"4×6 인화지에 쓰는 기본 골격입니다. 세로를 145mm 로 줄여, 프린터가 아래쪽에 남기는 흰 부분을 미리 감안했습니다. 테두리가 두껍고 아래 띠에 문구가 들어갑니다.",
-      paper:{w:101.6,h:145}, panels:1, cols:2, rows:2, m:SKEL, r:0
+      label:"4×6인치", sub:"짧게 96×128 · 권장",
+      hint:"4×6 인화지에 쓰는 기본 골격입니다. 96×128mm 로 넉넉히 줄여, 프린터 여백·머리글이 있어도 한 장에 들어옵니다. 테두리가 두껍고 아래 띠에 WELCOME HOME 마크가 들어갑니다.",
+      paper:{w:96,h:128}, panels:1, cols:2, rows:2, m:SKEL, r:0
     },
     "frame-4x6-full": {
       label:"4×6인치", sub:"꽉 채움 152.4mm",
@@ -889,6 +899,7 @@
   };
 
   var FRAMES = {
+    home:  { label:"웰컴홈", bg:"#7088A0", ink:"#FAE9A6", cut:"rgba(255,255,255,.3)" },
     white: { label:"화이트", bg:"#FFFFFF", ink:"#2B2B2B", cut:"rgba(0,0,0,.28)" },
     black: { label:"블랙",   bg:"#121212", ink:"#F0EDE7", cut:"rgba(255,255,255,.3)" },
     cream: { label:"크림",   bg:"#F4ECE0", ink:"#6B5A46", cut:"rgba(0,0,0,.24)" },
@@ -896,11 +907,11 @@
   };
 
   var SHOTS = 4, KEEP = 4, DPI = 300, MAXPX = 1600;   // 네 장 찍어 네 장 다 씁니다
-  var LEADIN = 5;                                      // 첫 컷 전 '시작합니다' 카운트(초)
+  var CDS = [2,3,4,5,6], LEADS = [3,5,7,10];           // 설정에서 고를 수 있는 초
 
   var S = {
-    layout:"frame-4x6", filter:"none", frame:"black",
-    caption:"인생네컷", withDate:true, mirror:true, countdown:3,
+    layout:"frame-4x6", filter:"none", frame:"home",
+    caption:"", withDate:true, mirror:true, countdown:3, leadin:5,
     copies:1, deviceId:null, stream:null,
     shots:[], picked:[], sheet:null,
     blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
@@ -1019,14 +1030,21 @@
   toggleChip($("mirBtn"), function(on){ S.mirror = on; $("vid").classList.toggle("mir", on); });
   toggleChip($("dateBtn"), function(on){ S.withDate = on; });
 
-  [$("cd3"), $("cd5")].forEach(function(b){
-    b.onclick = function(){
-      S.countdown = Number(b.dataset.cd);
-      $("cd3").setAttribute("aria-pressed", String(S.countdown === 3));
-      $("cd5").setAttribute("aria-pressed", String(S.countdown === 5));
-      savePrefs();
-    };
-  });
+  /* 타이머 칩 — 시작 카운트와 컷 간격 */
+  function buildTimers(){
+    [["leadrow", LEADS, "leadin"], ["cdrow", CDS, "countdown"]].forEach(function(t){
+      var box = $(t[0]); if(!box) return;
+      box.innerHTML = "";
+      t[1].forEach(function(n){
+        var b = document.createElement("button");
+        b.className = "chip"; b.type = "button";
+        b.textContent = n + "초";
+        b.setAttribute("aria-pressed", String(S[t[2]] === n));
+        b.onclick = function(){ S[t[2]] = n; savePrefs(); buildTimers(); };
+        box.appendChild(b);
+      });
+    });
+  }
 
   $("capIn").oninput = function(){ S.caption = $("capIn").value; savePrefs(); };
 
@@ -1051,7 +1069,7 @@
         layout:S.layout, filter:S.filter, frame:S.frame, caption:S.caption,
         withDate:S.withDate, mirror:S.mirror, countdown:S.countdown,
         agent:S.agent.url, printer:S.agent.printer, deviceId:S.deviceId,
-        tplFile:(TPL.on && TPL.file) ? TPL.file : "", printScale:S.printScale
+        tplFile:(TPL.on && TPL.file) ? TPL.file : "", printScale:S.printScale, leadin:S.leadin
       }));
     }catch(e){}
   }
@@ -1068,7 +1086,8 @@
     if(typeof p.caption === "string") S.caption = p.caption;
     if(typeof p.withDate === "boolean") S.withDate = p.withDate;
     if(typeof p.mirror === "boolean") S.mirror = p.mirror;
-    if(p.countdown === 3 || p.countdown === 5) S.countdown = p.countdown;
+    if(CDS.indexOf(p.countdown) >= 0) S.countdown = p.countdown;
+    if(LEADS.indexOf(p.leadin) >= 0) S.leadin = p.leadin;
     if(p.agent) S.agent.url = String(p.agent).replace(/\/+$/, "");
     if(p.printer) S.agent.printer = p.printer;
     if(p.deviceId) S.deviceId = p.deviceId;
@@ -1086,8 +1105,7 @@
     $("capIn").value = S.caption;
     $("dateBtn").setAttribute("aria-pressed", String(S.withDate));
     $("mirBtn").setAttribute("aria-pressed", String(S.mirror));
-    $("cd3").setAttribute("aria-pressed", String(S.countdown === 3));
-    $("cd5").setAttribute("aria-pressed", String(S.countdown === 5));
+    buildTimers();
     $("agentIn").value = S.agent.url;
     applyAspect();
   }
@@ -1213,10 +1231,10 @@
   function leadIn(total){
     var lead = $("lead"), num = $("leadN");
     $("leadSub").textContent = total === 1 ? "한 장만 찍습니다" : "네 장을 이어서 찍습니다";
-    num.textContent = LEADIN;
+    num.textContent = S.leadin;
     lead.classList.add("on");
     var chain = Promise.resolve();
-    for(var t=LEADIN; t>=1; t--){
+    for(var t=S.leadin; t>=1; t--){
       (function(t){
         chain = chain.then(function(){
           if(S.abort) return;
@@ -1298,8 +1316,8 @@
     }
     savePrefs(); syncSetup();
     $("shootSub").textContent = blueprintMode
-      ? "다섯을 센 뒤 한 장만 찍습니다"
-      : "다섯을 센 뒤, " + S.countdown + "초마다 한 장씩 네 장을 찍습니다";
+      ? S.leadin + "초를 센 뒤 한 장만 찍습니다"
+      : S.leadin + "초를 센 뒤, " + S.countdown + "초마다 한 장씩 네 장을 찍습니다";
     // 촬영 버튼을 누른 순간에만 카메라 권한을 요청합니다.
     // Safari/Chrome의 권한 정책 때문에 페이지 로드시 자동 요청하지 않습니다.
     var p = S.stream ? Promise.resolve() : openCamera(S.deviceId);
@@ -1656,7 +1674,7 @@
         var y = (m.top + row*(g0.chR + m.gy)) * cv.height;
         drawCover(g, S.shots[S.picked[i]].canvas, x, y, cw, ch, radius);
       }
-      drawFoot(g, F, ox + pw/2, cv.height, m.foot * cv.height);
+      drawFoot(g, F, ox + pw/2, cv.height, m.foot * cv.height, pw);
     }
 
     // 자르는 선
@@ -1673,11 +1691,99 @@
     return cv;
   }
 
+  /* 아래 띠의 WELCOME HOME 마크 — 손글씨 Welcome 과 HOME 을 겹쳐 놓습니다 */
+  /* WELCOME HOME 마크 이미지 — 흰 글자 + 투명 바탕. 원하는 색으로 물들여 씁니다. */
+  var MARK = new Image();
+  MARK.src = "assets/mark.png";
+  var MARK_TINT = null, MARK_TINT_KEY = "";
+
+  function markTinted(ink, w, h){
+    var key = ink + "|" + Math.round(w) + "x" + Math.round(h);
+    if(MARK_TINT_KEY === key && MARK_TINT) return MARK_TINT;
+    var c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+    var q = c.getContext("2d");
+    q.imageSmoothingQuality = "high";
+    q.drawImage(MARK, 0, 0, c.width, c.height);
+    q.globalCompositeOperation = "source-in";
+    q.fillStyle = ink; q.fillRect(0, 0, c.width, c.height);
+    MARK_TINT = c; MARK_TINT_KEY = key;
+    return c;
+  }
+
+  function drawMark(g, ink, cx, top, foot, bandW){
+    /* 받아 둔 로고가 있으면 그걸 씁니다 — 서체가 없어도, 인터넷이 없어도 같게 나옵니다 */
+    if(MARK.complete && MARK.naturalWidth > 0){
+      var band = bandW || foot * 6;
+      var maxW2 = band * 0.50;
+      var maxH2 = foot * 0.70;
+      var k = Math.min(maxW2 / MARK.naturalWidth, maxH2 / MARK.naturalHeight);
+      var w = MARK.naturalWidth * k, h = MARK.naturalHeight * k;
+      g.drawImage(markTinted(ink, w, h), cx - w/2, top + (foot - h) * 0.42);
+      return;
+    }
+    var targetH = foot * (S.withDate ? 0.46 : 0.58);
+    var maxW = (bandW || foot * 6) * 0.80;
+
+    /* 서체가 무엇으로 잡히든, 실제로 그려지는 크기를 재서 띠 안에 맞춥니다 */
+    function scriptBox(sz){
+      g.font = '400 ' + sz + 'px "Italianno","Snell Roundhand",cursive';
+      g.letterSpacing = "0px";
+      var m = g.measureText("Welcome");
+      return { w:m.width,
+               h:(m.actualBoundingBoxAscent || sz*.5) + (m.actualBoundingBoxDescent || sz*.2),
+               asc:(m.actualBoundingBoxAscent || sz*.5) };
+    }
+    var sz = foot, box = scriptBox(sz);
+    if(box.h > 0) sz = sz * (targetH / box.h);
+    box = scriptBox(sz);
+    if(box.w > maxW){ sz = sz * (maxW / box.w); box = scriptBox(sz); }
+
+    var hs = sz * 0.30;
+    function homeW(){
+      g.font = '200 ' + hs + 'px "Jost",sans-serif';
+      g.letterSpacing = (hs * 0.30) + "px";
+      return g.measureText("HOME").width;
+    }
+    var wHome = homeW(), overlap = box.w * 0.72, total = overlap + wHome;
+    if(total > maxW){
+      var k = maxW / total;
+      sz *= k; box = scriptBox(sz); hs = sz * 0.30;
+      wHome = homeW(); overlap = box.w * 0.72; total = overlap + wHome;
+    }
+
+    var left = cx - total / 2;
+    var baseY = top + foot * 0.12 + box.asc;
+
+    g.save();
+    g.fillStyle = ink; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    g.font = '400 ' + sz + 'px "Italianno","Snell Roundhand",cursive';
+    g.letterSpacing = "0px";
+    g.fillText("Welcome", left, baseY);
+    g.font = '200 ' + hs + 'px "Jost",sans-serif';
+    g.letterSpacing = (hs * 0.30) + "px";
+    g.fillText("HOME", left + overlap, baseY + hs * 0.55);
+    g.restore();
+  }
+
   /* 아래 띠의 문구와 날짜 */
-  function drawFoot(g, F, cx, H, foot){
+  function drawFoot(g, F, cx, H, foot, bandW){
     var cap = (S.caption || "").trim();
-    if(!cap && !S.withDate) return;
     var top = H - foot;
+    if(!cap){
+      drawMark(g, F.ink, cx, top, foot, bandW);
+      if(S.withDate){
+        var band2 = bandW || foot * 6;
+        g.save();
+        g.fillStyle = F.ink; g.textAlign = "right"; g.textBaseline = "middle";
+        g.font = '300 ' + (foot * .17) + 'px "Jost","Noto Sans KR",sans-serif';
+        g.letterSpacing = (foot * .05) + "px";
+        g.globalAlpha = .72;
+        g.fillText(todayText(), cx + band2 * 0.43, top + foot * 0.54);
+        g.restore();
+      }
+      return;
+    }
     g.save();
     g.fillStyle = F.ink; g.textAlign = "center"; g.textBaseline = "middle";
     if(cap){
@@ -1740,7 +1846,9 @@
     if(!document.fonts || !document.fonts.load) return Promise.resolve();
     return Promise.all([
       document.fonts.load('400 40px "Noto Sans KR"'),
-      document.fonts.load('300 40px "Jost"')
+      document.fonts.load('300 40px "Jost"'),
+      document.fonts.load('200 40px "Jost"'),
+      document.fonts.load('400 80px "Italianno"')
     ]).catch(function(){});
   }
 
@@ -2760,6 +2868,7 @@
   /* ══════ 시작 ══════ */
   loadPrefs();
   buildScale();
+  buildTimers();
   setCopies(1);
   checkAgent().then(qrSetup);
   tplInit();
