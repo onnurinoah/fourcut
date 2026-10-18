@@ -554,6 +554,7 @@
     </div>
     <div class="printdest" id="printDest"></div>
     <div class="btns">
+      <button class="btn ghost" id="shareBtn" style="flex:0 0 190px" hidden>사진 받기</button>
       <button class="btn solid grow" id="printBtn">바로 인쇄하기</button>
       <button class="btn ghost" id="backBtn" hidden>다시 찍기</button>
       <button class="btn ghost" id="saveBtn" hidden>저장</button>
@@ -888,7 +889,8 @@
     shots:[], picked:[], sheet:null,
     blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
     agent:{ url:"http://localhost:8787", ok:false, printer:"" },
-    printScale:100,          // 브라우저 인쇄 크기(%) — 잘리면 낮춥니다
+    printScale:90,           // 브라우저 인쇄 크기(%) — 프린터가 가장자리를 못 찍는 만큼 기본으로 줄여 둡니다
+                             // (인쇄 서버로 나갈 때는 쓰이지 않습니다. 여백 없이 꽉 채우려면 100%)
     busy:false, abort:false
   };
 
@@ -1832,6 +1834,7 @@
       renderSheet();
       buildLanes();
       showPrintDest();
+      $("shareBtn").hidden = !canShareFiles();
       show("s-print");
     });
   }
@@ -1973,7 +1976,8 @@
     st.id = "pageSize";
     st.textContent =
       "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}" +
-      "#printArea img{width:" + S.printScale + "%}";
+      "#printArea img{width:" + S.printScale + "%;" +
+        "margin:" + ((100 - S.printScale) / 2).toFixed(2) + "% auto}";
     document.head.appendChild(st);
     var url = S.sheet.toDataURL("image/png");
     for(var i=0;i<S.copies;i++){
@@ -2033,6 +2037,28 @@
     $("doneTxt").textContent = text;
     show("s-done");
   }
+
+  /* 이 기기가 '파일 공유' 를 지원하는지 — 아이폰 사파리면 에어드롭이 여기에 들어 있습니다 */
+  function canShareFiles(){
+    try{
+      if(!navigator.share || !navigator.canShare) return false;
+      var probe = new File([new Blob(["x"], { type:"image/png" })], "t.png", { type:"image/png" });
+      return navigator.canShare({ files:[probe] });
+    }catch(e){ return false; }
+  }
+
+  $("shareBtn").onclick = function(){
+    if(!S.sheet) return;
+    var btn = $("shareBtn"), was = btn.textContent;
+    btn.textContent = "준비 중…"; btn.disabled = true;
+    S.sheet.toBlob(function(blob){
+      btn.textContent = was; btn.disabled = false;
+      if(!blob) return;
+      var name = "fourcut-" + todayText().replace(/\./g, "") + ".png";
+      var file = new File([blob], name, { type:"image/png" });
+      navigator.share({ files:[file], title:"인생네컷" }).catch(function(){});
+    }, "image/png");
+  };
 
   $("saveBtn").onclick = function(){
     var a = document.createElement("a");
