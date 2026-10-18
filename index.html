@@ -432,24 +432,18 @@
     }
     body>*{display:none!important}
     #printArea{display:block!important}
-    /* 고정 위치 상자는 '종이 한 쪽' 에 맞춰집니다 — 화면 높이나 vh 에 기대지 않습니다.
-       머리글·바닥글이 켜져 있어 인쇄 영역이 줄어도 그 줄어든 영역에 맞춰 들어갑니다. */
-    #printArea .sheetfix{
-      position:fixed;left:0;top:0;right:0;bottom:0;
-      display:flex;align-items:center;justify-content:center;overflow:hidden
-    }
-    #printArea .sheetfix img{
-      display:block;width:auto;height:auto;max-width:100%;max-height:100%;
-      object-fit:contain;
-      -webkit-print-color-adjust:exact;print-color-adjust:exact
-    }
-    /* 매수만큼 장을 잡아 둡니다 (고정 상자가 모든 장에 찍힙니다).
-       완전히 빈 칸은 엔진이 버리므로 보이지 않는 글자 하나를 넣습니다. */
+    /* 보통 흐름으로 한 장씩 놓습니다. position:fixed 는 인쇄에서 아예 그리지 않는
+       기기가 있어 쓰지 않습니다. 가로 폭만 주면 세로는 비율대로 따라옵니다. */
     #printArea .pg{
-      height:2px;overflow:hidden;color:#fff;font-size:1px;line-height:1px;
-      break-after:page;page-break-after:always
+      display:block;text-align:center;
+      break-after:page;page-break-after:always;
+      break-inside:avoid;page-break-inside:avoid
     }
     #printArea .pg:last-child{break-after:auto;page-break-after:auto}
+    #printArea img{
+      display:block;margin:0 auto;height:auto;max-width:100%;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact
+    }
   }
 </style>
 
@@ -667,6 +661,12 @@
           <select id="prnSel"></select>
         </div>
         <div class="status"><span class="dot" id="agentDot"></span><span id="agentTxt">확인 중…</span></div>
+        <label class="fld" style="margin-top:14px">브라우저 인쇄 크기</label>
+        <div class="row" id="pscale"></div>
+        <p class="hint">
+          인쇄 서버로 나갈 때는 쓰이지 않습니다. <b>브라우저 인쇄창으로 뽑을 때</b> 위아래가
+          잘리면 한 칸씩 낮추세요. 머리글·바닥글을 끄고 여백을 '없음' 으로 두면 100% 로 꽉 찹니다.
+        </p>
         <p class="hint">
           서버가 없어도 인쇄됩니다. 그때는 브라우저 인쇄창이 뜨고,
           크롬을 <code>--kiosk-printing</code> 으로 띄워 두면 창 없이 기본 프린터로 바로 나갑니다.
@@ -888,6 +888,7 @@
     shots:[], picked:[], sheet:null,
     blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
     agent:{ url:"http://localhost:8787", ok:false, printer:"" },
+    printScale:100,          // 브라우저 인쇄 크기(%) — 잘리면 낮춥니다
     busy:false, abort:false
   };
 
@@ -1012,13 +1013,27 @@
   $("capIn").oninput = function(){ S.caption = $("capIn").value; savePrefs(); };
 
   /* ── 설정 기억하기 ── */
+  /* 브라우저 인쇄 크기 칩 */
+  function buildScale(){
+    var box = $("pscale"); if(!box) return;
+    box.innerHTML = "";
+    [100, 95, 90, 85].forEach(function(n){
+      var b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.textContent = n + "%";
+      b.setAttribute("aria-pressed", String(S.printScale === n));
+      b.onclick = function(){ S.printScale = n; savePrefs(); buildScale(); };
+      box.appendChild(b);
+    });
+  }
+
   function savePrefs(){
     try{
       localStorage.setItem("fourcut", JSON.stringify({
         layout:S.layout, filter:S.filter, frame:S.frame, caption:S.caption,
         withDate:S.withDate, mirror:S.mirror, countdown:S.countdown,
         agent:S.agent.url, printer:S.agent.printer, deviceId:S.deviceId,
-        tplFile:(TPL.on && TPL.file) ? TPL.file : ""
+        tplFile:(TPL.on && TPL.file) ? TPL.file : "", printScale:S.printScale
       }));
     }catch(e){}
   }
@@ -1039,6 +1054,7 @@
     if(p.agent) S.agent.url = String(p.agent).replace(/\/+$/, "");
     if(p.printer) S.agent.printer = p.printer;
     if(p.deviceId) S.deviceId = p.deviceId;
+    if([100,95,90,85].indexOf(p.printScale) >= 0) S.printScale = p.printScale;
     if(p.tplFile) TPL.want = p.tplFile;
     if(q.get("frame")) TPL.want = q.get("frame");
 
@@ -1955,19 +1971,17 @@
     area.innerHTML = "";
     var st = document.getElementById("pageSize") || document.createElement("style");
     st.id = "pageSize";
-    st.textContent = "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}";
+    st.textContent =
+      "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}" +
+      "#printArea img{width:" + S.printScale + "%}";
     document.head.appendChild(st);
     var url = S.sheet.toDataURL("image/png");
-    var fix = document.createElement("div");
-    fix.className = "sheetfix";
-    var im = new Image();
-    im.src = url; im.alt = "";
-    fix.appendChild(im);
-    area.appendChild(fix);
     for(var i=0;i<S.copies;i++){
       var pg = document.createElement("div");
       pg.className = "pg";
-      pg.textContent = "\u00a0";
+      var im = new Image();
+      im.src = url; im.alt = "";
+      pg.appendChild(im);
       area.appendChild(pg);
     }
     // 이미지가 올라온 뒤에 인쇄창을 띄웁니다
@@ -2704,6 +2718,7 @@
 
   /* ══════ 시작 ══════ */
   loadPrefs();
+  buildScale();
   setCopies(1);
   checkAgent().then(qrSetup);
   tplInit();
