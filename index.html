@@ -162,17 +162,17 @@
   .gear:hover{color:#fff;border-color:rgba(255,255,255,.7);background:rgba(12,24,44,.4)}
   .gear svg{width:27px;height:27px;display:block}
   .homeact{
-    position:absolute;left:0;right:0;bottom:74px;
-    display:flex;flex-direction:column;align-items:center;gap:13px
+    position:absolute;left:0;right:0;bottom:96px;
+    display:flex;flex-direction:column;align-items:center;gap:10px
   }
   .btn.big{
-    min-width:376px;min-height:88px;border-radius:99px;font-size:23px;
-    letter-spacing:.26em;padding-left:calc(22px + .26em);
-    box-shadow:0 20px 54px rgba(10,22,42,.4)
+    min-width:470px;min-height:116px;border-radius:99px;font-size:30px;
+    letter-spacing:.26em;padding-left:calc(26px + .26em);
+    box-shadow:0 22px 60px rgba(10,22,42,.44)
   }
   /* 청사진 쪽은 첫 화면 그림에 녹도록 테두리만 */
   .btn.big.line{
-    min-height:74px;font-size:19px;background:rgba(12,24,44,.26);
+    min-height:104px;font-size:26px;background:rgba(12,24,44,.26);
     border-color:rgba(255,255,255,.62);color:#fff;
     box-shadow:0 14px 40px rgba(10,22,42,.28);backdrop-filter:blur(4px)
   }
@@ -231,7 +231,7 @@
   .adminfoot{flex:0 0 auto;display:flex;gap:12px;justify-content:flex-end}
 
   /* ── QR 로 받기 ── */
-  .sheetwrap{min-height:0;display:grid;grid-template-columns:1fr 244px;gap:28px}
+  .sheetwrap{min-height:0;display:grid;grid-template-columns:1fr;gap:28px}
   .sheetwrap .sheet{min-height:0;height:100%}
   .qrcard{
     align-self:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;
@@ -288,10 +288,14 @@
 
   /* 청사진 촬영 버튼을 실제 주 CTA처럼 보이게 */
   .homechoices{display:flex;gap:14px;align-items:stretch}
-  .homechoices .big{min-width:340px}
-  .homebadge{display:inline-flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.05em;color:rgba(255,255,255,.82);margin-bottom:7px}
+  .homechoices .big{min-width:430px}
+  .homebadge{display:none;align-items:center;gap:7px;font-size:12px;letter-spacing:.05em;color:rgba(255,255,255,.82);margin-bottom:7px}
   .homebadge i{width:7px;height:7px;border-radius:50%;background:var(--gold);display:block;box-shadow:0 0 12px rgba(232,194,122,.55)}
-  .homehelp{margin:0;color:rgba(255,255,255,.78);font-size:14px}
+  .homehelp{margin:0;color:rgba(255,255,255,.72);font-size:13.5px}
+  .homebp{
+    margin:2px 0 0;color:var(--gold);font-size:18px;letter-spacing:.03em;
+    text-shadow:0 2px 14px rgba(0,0,0,.55)
+  }
 
   /* ── 2. 촬영 ── */
   #s-shoot{grid-template-columns:1fr 330px;gap:38px}
@@ -434,12 +438,14 @@
     #printArea{display:block!important}
     /* 보통 흐름으로 한 장씩 놓습니다. position:fixed 는 인쇄에서 아예 그리지 않는
        기기가 있어 쓰지 않습니다. 가로 폭만 주면 세로는 비율대로 따라옵니다. */
+    /* 위쪽 여유는 padding 으로 줍니다 — margin 은 '장 맨 위' 에서 엔진이 버려서
+       아무리 줄여도 윗부분이 계속 잘립니다. 장 넘김도 사이사이에만 겁니다
+       (마지막에 걸면 빈 장이 한 장 더 나옵니다). */
     #printArea .pg{
-      display:block;text-align:center;
-      break-after:page;page-break-after:always;
+      display:block;text-align:center;padding:2% 0;
       break-inside:avoid;page-break-inside:avoid
     }
-    #printArea .pg:last-child{break-after:auto;page-break-after:auto}
+    #printArea .pg + .pg{break-before:page;page-break-before:always}
     #printArea img{
       display:block;margin:0 auto;height:auto;max-width:100%;
       -webkit-print-color-adjust:exact;print-color-adjust:exact
@@ -466,6 +472,7 @@
         <button class="btn solid big" id="startBtn">네컷 촬영하기</button>
         <button class="btn big line" id="startBpBtn">청사진 사진 찍기</button>
       </div>
+      <p class="homebp">사진을 촬영하면 예수님이 등장합니다.</p>
       <p class="homehelp" id="homeHelp">청사진은 한 장만 찍으면 AI가 두 가지 장면으로 만들어 드립니다.</p>
       <p class="homemsg" id="homeMsg"></p>
     </div>
@@ -523,7 +530,8 @@
 <section class="screen" id="s-print">
   <div class="sheetwrap">
     <div class="sheet"><img id="preview" alt="인화 미리보기"></div>
-    <div class="qrcard" id="qrCard">
+    <!-- QR 칸은 쓰지 않습니다 (폰으로 받기는 'AirDrop으로 사진 받기' 로) -->
+    <div class="qrcard" id="qrCard" hidden>
       <div class="qrhead">폰으로 받기</div>
       <div class="qrcode" id="qrCode"><span class="wait">확인 중…</span></div>
       <div class="qrurl" id="qrUrl"></div>
@@ -554,7 +562,7 @@
     </div>
     <div class="printdest" id="printDest"></div>
     <div class="btns">
-      <button class="btn ghost" id="shareBtn" style="flex:0 0 190px" hidden>사진 받기</button>
+      <button class="btn ghost" id="shareBtn" style="flex:0 0 280px" hidden>AirDrop으로 사진 받기</button>
       <button class="btn solid grow" id="printBtn">바로 인쇄하기</button>
       <button class="btn ghost" id="backBtn" hidden>다시 찍기</button>
       <button class="btn ghost" id="saveBtn" hidden>저장</button>
@@ -889,7 +897,7 @@
     shots:[], picked:[], sheet:null,
     blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
     agent:{ url:"http://localhost:8787", ok:false, printer:"" },
-    printScale:90,           // 브라우저 인쇄 크기(%) — 프린터가 가장자리를 못 찍는 만큼 기본으로 줄여 둡니다
+    printScale:85,           // 브라우저 인쇄 크기(%) — 프린터가 가장자리를 못 찍는 만큼 기본으로 줄여 둡니다
                              // (인쇄 서버로 나갈 때는 쓰이지 않습니다. 여백 없이 꽉 채우려면 100%)
     busy:false, abort:false
   };
@@ -1019,7 +1027,7 @@
   function buildScale(){
     var box = $("pscale"); if(!box) return;
     box.innerHTML = "";
-    [100, 95, 90, 85].forEach(function(n){
+    [100, 95, 90, 85, 80, 75].forEach(function(n){
       var b = document.createElement("button");
       b.className = "chip"; b.type = "button";
       b.textContent = n + "%";
@@ -1056,7 +1064,7 @@
     if(p.agent) S.agent.url = String(p.agent).replace(/\/+$/, "");
     if(p.printer) S.agent.printer = p.printer;
     if(p.deviceId) S.deviceId = p.deviceId;
-    if([100,95,90,85].indexOf(p.printScale) >= 0) S.printScale = p.printScale;
+    if([100,95,90,85,80,75].indexOf(p.printScale) >= 0) S.printScale = p.printScale;
     if(p.tplFile) TPL.want = p.tplFile;
     if(q.get("frame")) TPL.want = q.get("frame");
 
@@ -1976,8 +1984,7 @@
     st.id = "pageSize";
     st.textContent =
       "@page{size:" + Lo.paper.w + "mm " + Lo.paper.h + "mm;margin:0}" +
-      "#printArea img{width:" + S.printScale + "%;" +
-        "margin:" + ((100 - S.printScale) / 2).toFixed(2) + "% auto}";
+      "#printArea img{width:" + S.printScale + "%}";
     document.head.appendChild(st);
     var url = S.sheet.toDataURL("image/png");
     for(var i=0;i<S.copies;i++){
