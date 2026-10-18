@@ -375,6 +375,13 @@
   }
   .sw[aria-pressed="true"] span{color:var(--gold)}
 
+  #s-print{align-items:stretch}
+  /* 오른쪽 칸은 세로 flex — 버튼이 아래쪽에 붙도록 (.col 규칙이 없어 블록으로 떨어져 있었습니다) */
+  #s-print .col{display:flex;flex-direction:column;min-height:0;height:100%;gap:18px}
+  #s-print .btns{margin-top:auto}
+  /* 손님이 누를 두 버튼 — 크게 */
+  .btn.xl{min-height:96px;font-size:22px;letter-spacing:.06em;border-radius:18px}
+  .bp-actions .btn.xl{min-height:96px}
   .qty{display:flex;align-items:center;gap:16px}
   .qty button{
     width:64px;height:64px;border-radius:50%;border:1px solid var(--line);
@@ -551,8 +558,7 @@
       <span class="t" style="font-size:26px">인쇄</span>
       <span class="s" id="printSub"></span>
     </div>
-    <!-- 사진 톤도 손님이 고르지 않습니다. 관리자 설정(톱니)의 '꾸미기 → 사진 톤' 에서만. -->
-    <div class="lane" id="laneFilter" hidden>
+    <div class="lane" id="laneFilter">
       <span class="lt">FILTER</span>
       <div class="sws" id="swFilter"></div>
     </div>
@@ -562,7 +568,7 @@
       <div class="sws grid" id="swFrame"></div>
     </div>
     <div style="flex:1 1 auto;min-height:0"></div>
-    <div class="qty">
+    <div class="qty" id="qtyRow">
       <button id="minus" aria-label="한 장 줄이기">−</button>
       <span class="n" id="copies">1</span><span class="u">장</span>
       <button id="plus" aria-label="한 장 늘리기">+</button>
@@ -570,9 +576,9 @@
     </div>
     <div class="printdest" id="printDest"></div>
     <div class="btns">
-      <button class="btn ghost" id="shareBtn" style="flex:0 0 280px" hidden>AirDrop으로 사진 받기</button>
-      <button class="btn solid grow" id="printBtn">바로 인쇄하기</button>
-      <button class="btn ghost" id="backBtn" hidden>다시 찍기</button>
+      <button class="btn ghost xl" id="backBtn" style="flex:1 1 0">처음으로 돌아가기</button>
+      <button class="btn solid xl grow" id="shareBtn">AirDrop으로 사진 받기</button>
+      <button class="btn solid xl" id="printBtn" style="flex:0 0 240px">바로 인쇄하기</button>
       <button class="btn ghost" id="saveBtn" hidden>저장</button>
     </div>
   </div>
@@ -598,17 +604,18 @@
       <p>찍은 사진을 바탕으로 예수님과 함께한 장면을 만들었습니다.<br>사진 아래에는 한 구절의 말씀이 무작위로 담깁니다.</p>
     </div>
     <div class="bpstate" id="bpState">AI 이미지를 만드는 중입니다. 잠시만 기다려 주세요.</div>
-    <div class="qrcard bpqrcard" id="bpQrCard">
+    <div class="qrcard bpqrcard" id="bpQrCard" hidden>
       <div class="qrhead">사진 한 번에 받기</div>
       <div class="qrcode" id="bpQrCode"><span class="wait">준비 중…</span></div>
       <div class="qrurl" id="bpQrUrl"></div>
       <p class="qrnote" id="bpQrNote">완성되면 QR이 바로 활성화됩니다.</p>
     </div>
     <div class="bp-actions">
-      <button class="btn ghost" id="bpAgainBtn">다시 찍기</button>
-      <button class="btn solid grow" id="bpPrintBtn" disabled>청사진 바로 인쇄</button>
+      <button class="btn ghost xl" id="bpAgainBtn" style="flex:1 1 0">처음으로 돌아가기</button>
+      <button class="btn solid xl grow" id="bpShareBtn">AirDrop으로 사진 받기</button>
+      <button class="btn solid xl" id="bpPrintBtn" style="flex:0 0 220px" hidden disabled>청사진 바로 인쇄</button>
     </div>
-    <p class="bpnote">인쇄 서버가 연결되어 있으면 브라우저 인쇄창 없이 바로 프린터로 보냅니다.</p>
+    <p class="bpnote" id="bpNote" hidden>인쇄 서버가 연결되어 있으면 브라우저 인쇄창 없이 바로 프린터로 보냅니다.</p>
   </div>
 </section>
 
@@ -680,6 +687,11 @@
           <select id="prnSel"></select>
         </div>
         <div class="status"><span class="dot" id="agentDot"></span><span id="agentTxt">확인 중…</span></div>
+        <label class="fld" style="margin-top:14px">인쇄 버튼</label>
+        <div class="row">
+          <button class="chip" id="showPrintBtn" aria-pressed="false">인쇄 버튼 보이기</button>
+        </div>
+        <p class="hint">꺼 두면 손님 화면에 인쇄 버튼이 보이지 않습니다. 사진은 <b>AirDrop으로 사진 받기</b> 로만 가져갑니다.</p>
         <label class="fld" style="margin-top:14px">브라우저 인쇄 크기</label>
         <div class="row" id="pscale"></div>
         <p class="hint">
@@ -916,7 +928,7 @@
     shots:[], picked:[], sheet:null,
     blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
     agent:{ url:"http://localhost:8787", ok:false, printer:"" },
-    printScale:100,           // 브라우저 인쇄 크기(%) — 프린터가 가장자리를 못 찍는 만큼 기본으로 줄여 둡니다
+    printScale:100, showPrint:false,           // 브라우저 인쇄 크기(%) — 프린터가 가장자리를 못 찍는 만큼 기본으로 줄여 둡니다
                              // (인쇄 서버로 나갈 때는 쓰이지 않습니다. 여백 없이 꽉 채우려면 100%)
     busy:false, abort:false
   };
@@ -1029,6 +1041,18 @@
   }
   toggleChip($("mirBtn"), function(on){ S.mirror = on; $("vid").classList.toggle("mir", on); });
   toggleChip($("dateBtn"), function(on){ S.withDate = on; });
+  toggleChip($("showPrintBtn"), function(on){ S.showPrint = on; applyPrintVisibility(); });
+
+  /* 인쇄 버튼을 보일지 숨길지 — 네컷·청사진 두 화면에 함께 적용합니다 */
+  function applyPrintVisibility(){
+    var on = !!S.showPrint;
+
+    [["printBtn", on], ["bpPrintBtn", on], ["bpNote", on], ["printDest", on],
+     ["qtyRow", on]
+    ].forEach(function(t){
+      var el = $(t[0]); if(el) el.hidden = !t[1];
+    });
+  }
 
   /* 타이머 칩 — 시작 카운트와 컷 간격 */
   function buildTimers(){
@@ -1072,7 +1096,8 @@
         layout:S.layout, filter:S.filter, frame:S.frame, caption:S.caption,
         withDate:S.withDate, mirror:S.mirror, countdown:S.countdown,
         agent:S.agent.url, printer:S.agent.printer, deviceId:S.deviceId,
-        tplFile:(TPL.on && TPL.file) ? TPL.file : "", printScale:S.printScale, leadin:S.leadin
+        tplFile:(TPL.on && TPL.file) ? TPL.file : "", printScale:S.printScale, leadin:S.leadin,
+        showPrint:S.showPrint
       }));
     }catch(e){}
   }
@@ -1096,6 +1121,7 @@
     if(typeof p.mirror === "boolean") S.mirror = p.mirror;
     if(CDS.indexOf(p.countdown) >= 0) S.countdown = p.countdown;
     if(LEADS.indexOf(p.leadin) >= 0) S.leadin = p.leadin;
+    if(typeof p.showPrint === "boolean") S.showPrint = p.showPrint;
     if(p.agent) S.agent.url = String(p.agent).replace(/\/+$/, "");
     if(p.printer) S.agent.printer = p.printer;
     if(p.deviceId) S.deviceId = p.deviceId;
@@ -1113,6 +1139,7 @@
     $("capIn").value = S.caption;
     $("dateBtn").setAttribute("aria-pressed", String(S.withDate));
     $("mirBtn").setAttribute("aria-pressed", String(S.mirror));
+    $("showPrintBtn").setAttribute("aria-pressed", String(S.showPrint));
     buildTimers();
     $("agentIn").value = S.agent.url;
     applyAspect();
@@ -1966,7 +1993,8 @@
       renderSheet();
       buildLanes();
       showPrintDest();
-      $("shareBtn").hidden = !canShareFiles();
+      $("shareBtn").hidden = false;
+      applyPrintVisibility();
       show("s-print");
     });
   }
@@ -2039,7 +2067,12 @@
     TOON.skip = true;
     $("toonwrap").hidden = true;
   };
-  $("backBtn").onclick = function(){ startShoot(false); };
+  $("backBtn").onclick = function(){
+    qrClear();
+    S.shots = []; S.picked = []; S.sheet = null; setCopies(1);
+    $("printArea").innerHTML = "";
+    show("s-setup");
+  };
 
   /* ══════ 매수 ══════ */
   function setCopies(n){
@@ -2178,18 +2211,33 @@
     }catch(e){ return false; }
   }
 
-  $("shareBtn").onclick = function(){
+  /* 아이폰이면 공유 시트(에어드롭), 안 되는 기기면 바로 내려받기 */
+  function sharePhoto(btn, msgEl){
     if(!S.sheet) return;
-    var btn = $("shareBtn"), was = btn.textContent;
+    var was = btn.textContent;
     btn.textContent = "준비 중…"; btn.disabled = true;
     S.sheet.toBlob(function(blob){
       btn.textContent = was; btn.disabled = false;
       if(!blob) return;
-      var name = "fourcut-" + todayText().replace(/\./g, "") + ".png";
-      var file = new File([blob], name, { type:"image/png" });
-      navigator.share({ files:[file], title:"인생네컷" }).catch(function(){});
+      var name = "welcomehome-" + todayText().replace(/\./g, "") + "-" + Date.now() + ".png";
+      if(canShareFiles()){
+        var file = new File([blob], name, { type:"image/png" });
+        navigator.share({ files:[file], title:"WELCOME HOME" }).catch(function(){});
+        return;
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = name; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      if(msgEl){
+        msgEl.className = "msg ok";
+        msgEl.textContent = "이 기기는 공유창을 지원하지 않아 사진을 내려받았습니다";
+      }
     }, "image/png");
-  };
+  }
+
+  $("shareBtn").onclick   = function(){ sharePhoto($("shareBtn"), $("printMsg")); };
+  $("bpShareBtn").onclick = function(){ sharePhoto($("bpShareBtn"), null); };
 
   $("saveBtn").onclick = function(){
     var a = document.createElement("a");
@@ -2876,6 +2924,7 @@
   /* ══════ 시작 ══════ */
   loadPrefs();
   buildScale();
+  applyPrintVisibility();
   buildTimers();
   setCopies(1);
   checkAgent().then(qrSetup);
