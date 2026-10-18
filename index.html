@@ -445,7 +445,7 @@
        아무리 줄여도 윗부분이 계속 잘립니다. 장 넘김도 사이사이에만 겁니다
        (마지막에 걸면 빈 장이 한 장 더 나옵니다). */
     #printArea .pg{
-      display:block;text-align:center;padding:1% 0;
+      display:block;text-align:center;padding:0;
       break-inside:avoid;page-break-inside:avoid
     }
     #printArea .pg + .pg{break-before:page;page-break-before:always}
@@ -766,9 +766,9 @@
 
   var PAPERS = {
     "frame-4x6": {
-      label:"4×6인치", sub:"96×134 · 권장",
-      hint:"4×6 인화지에 쓰는 기본 골격입니다. 96×134mm 로 줄여, 프린터 여백·머리글이 있어도 한 장에 들어옵니다. 테두리가 두껍고 아래 띠에 WELCOME HOME 마크가 들어갑니다.",
-      paper:{w:96,h:134}, panels:1, cols:2, rows:2, m:SKEL, r:0
+      label:"4×6인치", sub:"96×138 · 꽉 차게",
+      hint:"4×6 인화지에 쓰는 기본 골격입니다. 96×138mm — 프린터가 실제로 찍을 수 있는 영역을 꽉 채우도록 맞췄습니다. 줄여, 프린터 여백·머리글이 있어도 한 장에 들어옵니다. 테두리가 두껍고 아래 띠에 WELCOME HOME 마크가 들어갑니다.",
+      paper:{w:96,h:138}, panels:1, cols:2, rows:2, m:SKEL, r:0
     },
     "frame-4x6-full": {
       label:"4×6인치", sub:"꽉 채움 152.4mm",
@@ -916,7 +916,7 @@
     shots:[], picked:[], sheet:null,
     blueprintMode:false, blueprint:{ original:null, jesus:null, verse:null, ready:false },
     agent:{ url:"http://localhost:8787", ok:false, printer:"" },
-    printScale:95,           // 브라우저 인쇄 크기(%) — 프린터가 가장자리를 못 찍는 만큼 기본으로 줄여 둡니다
+    printScale:100,           // 브라우저 인쇄 크기(%) — 프린터가 가장자리를 못 찍는 만큼 기본으로 줄여 둡니다
                              // (인쇄 서버로 나갈 때는 쓰이지 않습니다. 여백 없이 꽉 채우려면 100%)
     busy:false, abort:false
   };
@@ -1063,7 +1063,7 @@
     });
   }
 
-  var PREFS_V = 4;   // 모양(규격·테두리·문구)이 바뀌면 올립니다 → 기기에 남은 옛 설정을 한 번 비웁니다
+  var PREFS_V = 5;   // 모양(규격·테두리·문구)이 바뀌면 올립니다 → 기기에 남은 옛 설정을 한 번 비웁니다
 
   function savePrefs(){
     try{
